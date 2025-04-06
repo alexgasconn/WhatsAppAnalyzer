@@ -1,16 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WhatsApp File Analyzer</title>
 </head>
+
 <body>
   <h1>WhatsApp File Analyzer</h1>
-  <input type="file" id="fileInput" accept=".txt"/>
+  <input type="file" id="fileInput" accept=".txt" />
   <button onclick="handleFile()">Analyze</button>
   <pre id="output"></pre>
+  <div id="stats"></div>
+  <canvas id="chart" width="400" height="200"></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script src="script.js"></script>
 </body>
+
 </html>
