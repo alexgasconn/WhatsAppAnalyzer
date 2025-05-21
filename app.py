@@ -504,7 +504,11 @@ if uploaded_file:
             else:
                 opciones = opciones[:4]
 
-            respuesta = st.radio("¿Quién lo dijo?", opciones, key=f"radio_{st.session_state['game_idx']}")
+            respuesta = st.radio(
+                "¿Quién lo dijo?", 
+                opciones, 
+                key=f"radio_1_{st.session_state['game_idx']}"
+            )
 
             if st.button("Comprobar"):
                 st.session_state['attempts'] += 1
@@ -552,7 +556,11 @@ if uploaded_file:
                 st.session_state['word_game_word'] = random.choice(words)
             else:
                 random.shuffle(opciones_word)
-                respuesta_word = st.radio("¿Quién dijo esta palabra más veces?", opciones_word, key=f"word_radio_{word}_{st.session_state['word_game_attempts']}")
+                respuesta_word = st.radio(
+    "¿Quién dijo esta palabra más veces?", 
+    opciones_word, 
+    key=f"radio_2_{word}_{st.session_state['word_game_attempts']}"
+)
 
                 if st.button("Comprobar palabra"):
                     st.session_state['word_game_attempts'] += 1
@@ -598,7 +606,11 @@ if uploaded_file:
             else:
                 opciones = opciones[:4]
 
-            respuesta = st.radio("¿Quién lo dijo?", opciones, key=f"radio_{st.session_state['game_idx']}")
+            respuesta = st.radio(
+    "¿Quién lo dijo?", 
+    opciones, 
+    key=f"radio_1_{st.session_state['game_idx']}"
+)
 
             if st.button("Comprobar"):
                 st.session_state['attempts'] += 1
