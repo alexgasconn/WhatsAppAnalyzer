@@ -329,8 +329,15 @@ if uploaded_file:
         for _, row in keywords_df.iterrows():
             tone_keywords[row['tone']].append(row['word'])
 
+        import re
+        from collections import defaultdict
+        from rapidfuzz import fuzz
+
+        def simple_tokenize(text):
+            return re.findall(r'\b\w{2,}\b', text.lower())
+
         def classify_tone_fuzzy(msg, threshold=85):
-            tokens = word_tokenize(msg.lower())
+            tokens = simple_tokenize(msg)
             matches = defaultdict(int)
             for tone, words in tone_keywords.items():
                 for word in words:
