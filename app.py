@@ -300,39 +300,44 @@ if uploaded_file:
 
         st.subheader("Menciones entre usuarios")
 
-        # Obtener usuarios únicos (evitando mensajes del sistema)
-        users = df['user'].dropna().apply(lambda x: x.split()[0] if isinstance(x, str) else x).unique().tolist()
-        users_clean = [u for u in users if len(u.split()) < 5 and not re.match(r'^\d+$', u)]
+        # Limpiar nombres de usuario
+        users = df['user'].dropna().unique().tolist()
+        users_clean = [u for u in users if isinstance(u, str) and len(u.strip()) > 0 and not re.match(r'^\d+$', u)]
 
-        # Crear mapa de nombres en minúscula para matching
-        user_lc_map = {u: u.lower() for u in users_clean}
+        # Crear mapping de primer nombre → lista de usuarios que lo contienen
+        from collections import defaultdict
+        name_map = defaultdict(list)
+        for u in users_clean:
+            first_name = u.split()[0].lower()
+            name_map[first_name].append(u)
 
-        # Inicializar matriz de menciones
+        # Inicializar matriz de menciones entre nombres completos
         mention_counts = pd.DataFrame(0, index=users_clean, columns=users_clean)
 
-        # Recorrer mensajes y contar menciones
-        for idx, row in df.iterrows():
+        # Recorrer los mensajes
+        for _, row in df.iterrows():
             msg = str(row['message']).lower()
             sender = row['user']
             if sender not in users_clean:
                 continue
-            for target in users_clean:
-                if target == sender:
-                    continue
-                pattern = r'\b' + re.escape(user_lc_map[target]) + r'\b'
-                if re.search(pattern, msg):
-                    mention_counts.loc[sender, target] += 1
 
-        # Mostrar tabla
+            for first_name, targets in name_map.items():
+                if first_name in msg:
+                    for target_full in targets:
+                        if target_full != sender:
+                            mention_counts.loc[sender, target_full] += 1
+
+        # Mostrar resultados
         st.dataframe(mention_counts)
 
-        # Mostrar heatmap
-        st.subheader("Heatmap de menciones")
+        # Heatmap
+        st.subheader("Heatmap de menciones (por primer nombre)")
         fig_mentions, ax_mentions = plt.subplots(figsize=(6, 4))
         sns.heatmap(mention_counts, annot=True, fmt="d", cmap="Greens", ax=ax_mentions)
         ax_mentions.set_xlabel("Mencionado")
         ax_mentions.set_ylabel("Quien menciona")
         st.pyplot(fig_mentions)
+
 
 
 
@@ -385,6 +390,8 @@ if uploaded_file:
             return max(matches, key=matches.get) if matches else 'other'
 
         df['tone'] = df['message'].apply(classify_tone_fuzzy)
+        # Remove 'other' category from tone column
+        df = df[df['tone'] != 'other']
 
         # Visualización principal
         st.subheader("Overall Tone Distribution")
