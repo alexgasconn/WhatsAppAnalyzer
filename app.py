@@ -301,7 +301,7 @@ if uploaded_file:
         st.subheader("Menciones entre usuarios")
 
         # Obtener usuarios únicos (evitando mensajes del sistema)
-        users = df['user'].dropna().unique().tolist()
+        users = df['user'].dropna().apply(lambda x: x.split()[0] if isinstance(x, str) else x).unique().tolist()
         users_clean = [u for u in users if len(u.split()) < 5 and not re.match(r'^\d+$', u)]
 
         # Crear mapa de nombres en minúscula para matching
