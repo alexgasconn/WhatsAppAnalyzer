@@ -225,7 +225,7 @@ if uploaded_file:
         all_words = ' '.join(df['message'].tolist())
         words = re.findall(r'\b\w+\b', all_words.lower())
         words = [word for word in words if len(word) > 3]
-        words = [word for word in words if word not in ["multimedia", "media", "omitido", "enlace", "link", "null", "mensaje", "este", "eliminado", "elimino", "eliminó"]]
+        words = [word for word in words if word not in ["multimedia", "media", "omitido", "enlace", "link", "null", "mensaje", "este", "eliminado", "elimino", "eliminó", "omitted", "https", "status", "deleted"]]
         common_words = Counter(words).most_common(10)
         st.write(pd.DataFrame(common_words, columns=["Palabra", "Frecuencia"]))
 
@@ -302,93 +302,191 @@ if uploaded_file:
     with tab6:
         st.header("🧠 Análisis NLP: Tono Emocional y Relaciones")
 
-        # Palabras clave ampliadas en catalán y español para múltiples categorías de tono/emoción
-        tono_palabras = {
-            '❤️ Cariñoso': [
-            'amor', 'tqm', 'beso', 'abrazo', 'cariño', 'te quiero', 'guapo', 'guapa', 'bonita', 'preciosa', 'mua',
-            't\'estimo', 'estimo', 'abraçada', 'petó', 'mac@', 'preciosa', 'rei', 'reina', 'tq', 'molt amor',
-            'querido', 'querida', 'cari', 'precioso', 'preciosa', 'lindo', 'linda', 'hermoso', 'hermosa', 'encantador',
-            'encantadora', 'adoro', 'adorable', 'dulce', 'dulzura', 'cielo', 'corazón', 'mi vida', 'mi alma', 'tesoro',
-            'bonic', 'bonica', 'carinyo', 'carinyet', 'petonet', 'petonets', 'abraçades', 't’estimo molt', 't’estim',
-            'muac', 'muack', 'muacks', 'besitos', 'besote', 'besotes', 'abrazote', 'abrazotes', 'amorcito', 'amore',
-            'amig@', 'amiga', 'amigo', 'compañer@', 'compañera', 'compañero', 'estimada', 'estimado', 'preci',
-            'guapetón', 'guapetona', 'boníssim', 'boníssima', 'encant', 'encantat', 'encantada', 'idol', 'idol@',
-            'idolito', 'idolita', 'adoración', 'adorad@', 'adorada', 'adorado', 'cariñito', 'cariñosa', 'cariñoso'
-            ],
-            '😡 Agresivo': [
-            'odio', 'idiota', 'cállate', 'pesado', 'estúpido', 'mierda', 'joder', 'gilipollas', 'tonto', 'calla',
-            'imbècil', 'pesat', 'merda', 'capullo', 'estúpid', 'pallasso', 'collons', 'imbécil', 'asqueroso',
-            'asquerosa', 'maldito', 'maldita', 'cabron', 'cabrona', 'puta', 'puto', 'put@', 'putada', 'cojones',
-            'coño', 'hostia', 'hostias', 'malparit', 'malparida', 'malparido', 'subnormal', 'cretino', 'cretina',
-            'burro', 'burra', 'burro/a', 'tont@', 'tonta', 'tonto', 'tontorrón', 'tontorrona', 'payaso', 'payasa',
-            'pallasso', 'pallassa', 'gilipuertas', 'imbecil', 'imbécil', 'pesada', 'pesado', 'cansino', 'cansina',
-            'cansad@', 'cansada', 'cansado', 'plasta', 'plasta!'
-            ],
-            '😂 Humor': [
-            'jaja', 'jeje', 'jajaja', 'lol', 'xd', 'xddd', 'risas', 'carcajada', 'carcajadas', 'gracioso', 'graciosa',
-            'chiste', 'broma', 'bromita', 'jijiji', 'juas', 'lolazo', 'humor', 'divertido', 'divertida', '🤣', '😹', '😆', '😄'
-            ],
-            '😢 Triste': [
-            'triste', 'lloro', 'llorando', 'pena', 'deprimido', 'deprimida', 'depre', 'decepción', 'decepcionado',
-            'decepcionada', 'desanimado', 'desanimada', 'lágrima', 'lágrimas', 'ploro', 'plorant', 'plorant', 'plorera',
-            'plor', 'trist', 'trista', 'tristesa', 'tristeza', '😭', '😢', '😞', '😔'
-            ],
-            '😱 Sorpresa': [
-            'sorpresa', 'sorprendido', 'sorprendida', 'increíble', 'no me lo creo', 'alucino', 'flipante', 'wow',
-            'madre mía', 'impresionante', 'inesperado', 'inesperada', 'qué fuerte', 'ostras', 'ostia', 'ostia!', '😱', '😲', '😮'
-            ],
-            '😐 Neutro': [
-            'ok', 'vale', 'bueno', 'bien', 'normal', 'así', 'pues', 'entonces', 'de acuerdo', 'okey', 'okeydokey', 'okis', 'okey', 'okey!', 'ok!', '👌', '👍'
-            ],
-            '😅 Nervioso': [
-            'uff', 'madre mía', 'ay', 'ayyy', 'ay dios', 'madre', 'madre mia', 'madre mía', 'nervioso', 'nerviosa', 'qué nervios', 'ansioso', 'ansiosa', 'ansiedad', '😅', '😬'
-            ],
-            '😇 Agradecido': [
-            'gracias', 'gràcies', 'merci', 'thank you', 'agradecido', 'agradecida', 'te lo agradezco', 'mil gracias', 'muchas gracias', 'graciasss', 'graciass', 'gracias!', '🙏', '🤗'
-            ],
-            '😤 Frustración': [
-            'uff', 'pfff', 'argh', 'qué rabia', 'rabia', 'frustrado', 'frustrada', 'frustrante', 'me canso', 'cansado', 'cansada', 'cansancio', 'me molesta', 'molesto', 'molesta', '😤', '😠'
-            ]
-        }
+        import nltk
+        from nltk.tokenize import word_tokenize
+        from rapidfuzz import fuzz
+        from collections import defaultdict
+        import os
 
-        def clasificar_tono(msg):
-            msg_lower = msg.lower()
-            for tono, palabras in tono_palabras.items():
-                for palabra in palabras:
-                    if palabra in msg_lower:
-                        return tono
-                    return '🤔 Otro'
+        nltk.download('punkt')
 
-        df['tono'] = df['message'].apply(clasificar_tono)
+        keywords_path = "data/emotion_keywords.csv"
 
-        # Conteo general
-        st.subheader("Distribución general de tono")
-        st.bar_chart(df['tono'].value_counts())
+        if not os.path.exists(keywords_path):
+            st.error(f"Keyword file not found: {keywords_path}")
+            st.stop()
 
-        # Por usuario
-        st.subheader("Ranking de tono por usuario")
-        tono_usuarios = df.groupby(['user', 'tono']).size().unstack(fill_value=0)
-        st.dataframe(tono_usuarios)
+        try:
+            keywords_df = pd.read_csv(keywords_path)
+            keywords_df['tone'] = keywords_df['tone'].str.strip()
+            keywords_df['word'] = keywords_df['word'].str.strip().str.lower()
+        except Exception as e:
+            st.error(f"Error loading keyword file: {e}")
+            st.stop()
 
-        # Por día
-        st.subheader("Evolución diaria de mensajes por tipo de tono")
-        tono_diario = df.groupby(['day', 'tono']).size().unstack(fill_value=0)
-        st.area_chart(tono_diario)
+        # Diccionario: tone -> list of words
+        tone_keywords = defaultdict(list)
+        for _, row in keywords_df.iterrows():
+            tone_keywords[row['tone']].append(row['word'])
 
-        # Sentimiento medio por persona
-        st.subheader("Sentimiento medio por persona")
-        sent_por_usuario = df.groupby('user')['sentiment'].mean().sort_values()
-        st.bar_chart(sent_por_usuario)
+        def classify_tone_fuzzy(msg, threshold=85):
+            tokens = word_tokenize(msg.lower())
+            matches = defaultdict(int)
+            for tone, words in tone_keywords.items():
+                for word in words:
+                    for token in tokens:
+                        if fuzz.partial_ratio(token, word) >= threshold:
+                            matches[tone] += 1
+            return max(matches, key=matches.get) if matches else 'other'
 
-        # Día más cariñoso o agresivo
-        st.subheader("Días con más mensajes cariñosos o agresivos")
-        top_dias = df.groupby(['day', 'tono']).size().unstack(fill_value=0)
-        top_cariño = top_dias['❤️ Cariñoso'].sort_values(ascending=False).head(3)
-        top_enfado = top_dias['😡 Agresivo'].sort_values(ascending=False).head(3)
-        st.markdown("**🥰 Días más cariñosos:**")
-        st.write(top_cariño)
-        st.markdown("**😤 Días más agresivos:**")
-        st.write(top_enfado)
+        df['tone'] = df['message'].apply(classify_tone_fuzzy)
+
+        # Visualización principal
+        st.subheader("Overall Tone Distribution")
+        st.bar_chart(df['tone'].value_counts())
+
+        st.subheader("Tone by User")
+        tone_user = df.groupby(['user', 'tone']).size().unstack(fill_value=0)
+        st.dataframe(tone_user.style.highlight_max(axis=1))
+
+        st.subheader("Tone Evolution Over Time")
+        tone_daily = df.groupby(['day', 'tone']).size().unstack(fill_value=0)
+        st.area_chart(tone_daily)
+
+        st.subheader("Top Tone per Day")
+        if not tone_daily.empty:
+            top_tone_day = tone_daily.idxmax(axis=1).value_counts()
+            st.write(top_tone_day)
+
+        st.subheader("Average Sentiment by User")
+        st.bar_chart(df.groupby('user')['sentiment'].mean().sort_values())
+
+        st.subheader("Tone Heatmap per User")
+        import seaborn as sns
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(10, 5))
+        sns.heatmap(tone_user, cmap='YlOrRd', annot=True, fmt='d', ax=ax)
+        st.pyplot(fig)
+
+        st.subheader("Word Clouds per Tone")
+        from wordcloud import WordCloud
+        col1, col2 = st.columns(2)
+        for i, tone in enumerate(tone_keywords):
+            subset = df[df['tone'] == tone]
+            if subset.empty:
+                continue
+            text = ' '.join(subset['message'].tolist())
+            wc = WordCloud(width=400, height=200, background_color='white').generate(text)
+            with (col1 if i % 2 == 0 else col2):
+                st.markdown(f"**{tone.capitalize()}**")
+                fig_wc, ax_wc = plt.subplots()
+                ax_wc.imshow(wc, interpolation='bilinear')
+                ax_wc.axis('off')
+                st.pyplot(fig_wc)
+
+        st.subheader("Top Days by Affection and Aggression")
+        if 'affection' in tone_daily.columns:
+            st.markdown("**Most Affectionate Days:**")
+            st.write(tone_daily['affection'].sort_values(ascending=False).head(3))
+        else:
+            st.info("No affectionate messages found.")
+
+        if 'aggressive' in tone_daily.columns:
+            st.markdown("**Most Aggressive Days:**")
+            st.write(tone_daily['aggressive'].sort_values(ascending=False).head(3))
+        else:
+            st.info("No aggressive messages found.")
+
+
+
+
+#         # Palabras clave ampliadas en catalán y español para múltiples categorías de tono/emoción
+#         tono_palabras = {
+#             '❤️ Cariñoso': [
+#             'amor', 'tqm', 'beso', 'abrazo', 'cariño', 'te quiero', 'guapo', 'guapa', 'bonita', 'preciosa', 'mua',
+#             't\'estimo', 'estimo', 'abraçada', 'petó', 'mac@', 'preciosa', 'rei', 'reina', 'tq', 'molt amor',
+#             'querido', 'querida', 'cari', 'precioso', 'preciosa', 'lindo', 'linda', 'hermoso', 'hermosa', 'encantador',
+#             'encantadora', 'adoro', 'adorable', 'dulce', 'dulzura', 'cielo', 'corazón', 'mi vida', 'mi alma', 'tesoro',
+#             'bonic', 'bonica', 'carinyo', 'carinyet', 'petonet', 'petonets', 'abraçades', 't’estimo molt', 't’estim',
+#             'muac', 'muack', 'muacks', 'besitos', 'besote', 'besotes', 'abrazote', 'abrazotes', 'amorcito', 'amore',
+#             'amig@', 'amiga', 'amigo', 'compañer@', 'compañera', 'compañero', 'estimada', 'estimado', 'preci',
+#             'guapetón', 'guapetona', 'boníssim', 'boníssima', 'encant', 'encantat', 'encantada', 'idol', 'idol@',
+#             'idolito', 'idolita', 'adoración', 'adorad@', 'adorada', 'adorado', 'cariñito', 'cariñosa', 'cariñoso'
+#             ],
+#             '😡 Agresivo': [
+#             'odio', 'idiota', 'cállate', 'pesado', 'estúpido', 'mierda', 'joder', 'gilipollas', 'tonto', 'calla',
+#             'imbècil', 'pesat', 'merda', 'capullo', 'estúpid', 'pallasso', 'collons', 'imbécil', 'asqueroso',
+#             'asquerosa', 'maldito', 'maldita', 'cabron', 'cabrona', 'puta', 'puto', 'put@', 'putada', 'cojones',
+#             'coño', 'hostia', 'hostias', 'malparit', 'malparida', 'malparido', 'subnormal', 'cretino', 'cretina',
+#             'burro', 'burra', 'burro/a', 'tont@', 'tonta', 'tonto', 'tontorrón', 'tontorrona', 'payaso', 'payasa',
+#             'pallasso', 'pallassa', 'gilipuertas', 'imbecil', 'imbécil', 'pesada', 'pesado', 'cansino', 'cansina',
+#             'cansad@', 'cansada', 'cansado', 'plasta', 'plasta!'
+#             ],
+#             '😂 Humor': [
+#             'jaja', 'jeje', 'jajaja', 'lol', 'xd', 'xddd', 'risas', 'carcajada', 'carcajadas', 'gracioso', 'graciosa',
+#             'chiste', 'broma', 'bromita', 'jijiji', 'juas', 'lolazo', 'humor', 'divertido', 'divertida', '🤣', '😹', '😆', '😄'
+#             ],
+#             '😢 Triste': [
+#             'triste', 'lloro', 'llorando', 'pena', 'deprimido', 'deprimida', 'depre', 'decepción', 'decepcionado',
+#             'decepcionada', 'desanimado', 'desanimada', 'lágrima', 'lágrimas', 'ploro', 'plorant', 'plorant', 'plorera',
+#             'plor', 'trist', 'trista', 'tristesa', 'tristeza', '😭', '😢', '😞', '😔'
+#             ],
+#             '😱 Sorpresa': [
+#             'sorpresa', 'sorprendido', 'sorprendida', 'increíble', 'no me lo creo', 'alucino', 'flipante', 'wow',
+#             'madre mía', 'impresionante', 'inesperado', 'inesperada', 'qué fuerte', 'ostras', 'ostia', 'ostia!', '😱', '😲', '😮'
+#             ],
+#             '😐 Neutro': [
+#             'ok', 'vale', 'bueno', 'bien', 'normal', 'así', 'pues', 'entonces', 'de acuerdo', 'okey', 'okeydokey', 'okis', 'okey', 'okey!', 'ok!', '👌', '👍'
+#             ],
+#             '😅 Nervioso': [
+#             'uff', 'madre mía', 'ay', 'ayyy', 'ay dios', 'madre', 'madre mia', 'madre mía', 'nervioso', 'nerviosa', 'qué nervios', 'ansioso', 'ansiosa', 'ansiedad', '😅', '😬'
+#             ],
+#             '😇 Agradecido': [
+#             'gracias', 'gràcies', 'merci', 'thank you', 'agradecido', 'agradecida', 'te lo agradezco', 'mil gracias', 'muchas gracias', 'graciasss', 'graciass', 'gracias!', '🙏', '🤗'
+#             ],
+#             '😤 Frustración': [
+#             'uff', 'pfff', 'argh', 'qué rabia', 'rabia', 'frustrado', 'frustrada', 'frustrante', 'me canso', 'cansado', 'cansada', 'cansancio', 'me molesta', 'molesto', 'molesta', '😤', '😠'
+#             ]
+#         }
+
+#         def clasificar_tono(msg):
+#             msg_lower = msg.lower()
+#             for tono, palabras in tono_palabras.items():
+#                 for palabra in palabras:
+#                     if palabra in msg_lower:
+#                         return tono
+#                     return '🤔 Otro'
+
+#         df['tono'] = df['message'].apply(clasificar_tono)
+
+#         # Conteo general
+#         st.subheader("Distribución general de tono")
+#         st.bar_chart(df['tono'].value_counts())
+
+#         # Por usuario
+#         st.subheader("Ranking de tono por usuario")
+#         tono_usuarios = df.groupby(['user', 'tono']).size().unstack(fill_value=0)
+#         st.dataframe(tono_usuarios)
+
+#         # Por día
+#         st.subheader("Evolución diaria de mensajes por tipo de tono")
+#         tono_diario = df.groupby(['day', 'tono']).size().unstack(fill_value=0)
+#         st.area_chart(tono_diario)
+
+#         # Sentimiento medio por persona
+#         st.subheader("Sentimiento medio por persona")
+#         sent_por_usuario = df.groupby('user')['sentiment'].mean().sort_values()
+#         st.bar_chart(sent_por_usuario)
+
+#         # Día más cariñoso o agresivo
+#         st.subheader("Días con más mensajes cariñosos o agresivos")
+#         top_dias = df.groupby(['day', 'tono']).size().unstack(fill_value=0)
+#         top_cariño = top_dias['❤️ Cariñoso'].sort_values(ascending=False).head(3)
+#         top_enfado = top_dias['😡 Agresivo'].sort_values(ascending=False).head(3)
+#         st.markdown("**🥰 Días más cariñosos:**")
+#         st.write(top_cariño)
+#         st.markdown("**😤 Días más agresivos:**")
+#         st.write(top_enfado)
 
 
 else:
