@@ -298,6 +298,44 @@ if uploaded_file:
         ax4.set_xlabel("Sentimiento (polarity)")
         st.pyplot(fig4)
 
+        st.subheader("Menciones entre usuarios")
+
+        # Obtener usuarios únicos (evitando mensajes del sistema)
+        users = df['user'].dropna().unique().tolist()
+        users_clean = [u for u in users if len(u.split()) < 5 and not re.match(r'^\d+$', u)]
+
+        # Crear mapa de nombres en minúscula para matching
+        user_lc_map = {u: u.lower() for u in users_clean}
+
+        # Inicializar matriz de menciones
+        mention_counts = pd.DataFrame(0, index=users_clean, columns=users_clean)
+
+        # Recorrer mensajes y contar menciones
+        for idx, row in df.iterrows():
+            msg = str(row['message']).lower()
+            sender = row['user']
+            if sender not in users_clean:
+                continue
+            for target in users_clean:
+                if target == sender:
+                    continue
+                pattern = r'\b' + re.escape(user_lc_map[target]) + r'\b'
+                if re.search(pattern, msg):
+                    mention_counts.loc[sender, target] += 1
+
+        # Mostrar tabla
+        st.dataframe(mention_counts)
+
+        # Mostrar heatmap
+        st.subheader("Heatmap de menciones")
+        fig_mentions, ax_mentions = plt.subplots(figsize=(6, 4))
+        sns.heatmap(mention_counts, annot=True, fmt="d", cmap="Greens", ax=ax_mentions)
+        ax_mentions.set_xlabel("Mencionado")
+        ax_mentions.set_ylabel("Quien menciona")
+        st.pyplot(fig_mentions)
+
+
+
     
     with tab6:
         st.header("🧠 Análisis NLP: Tono Emocional y Relaciones")
