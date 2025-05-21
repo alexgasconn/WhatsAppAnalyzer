@@ -70,8 +70,8 @@ if uploaded_file:
     # Sentiment
     df['sentiment'] = df['message'].apply(get_sentiment)
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "📊 Estadísticas", "📈 Actividad", "🗣️ Participación", "😂 Emojis y Wordcloud", "🔍 Avanzado", "🧠 NLP"
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+        "📊 Estadísticas", "📈 Actividad", "🗣️ Participación", "😂 Emojis y Wordcloud", "🔍 Avanzado", "🧠 NLP", "🧠 Chat Assistant" 
     ])
 
 
@@ -539,6 +539,46 @@ if uploaded_file:
 #         st.write(top_cariño)
 #         st.markdown("**😤 Días más agresivos:**")
 #         st.write(top_enfado)
+
+
+    with tab7:
+        st.header("🧠 Chat Assistant (Búsqueda)")
+
+        st.markdown("Haz una pregunta o escribe palabras clave. Te mostraremos los mensajes relacionados.")
+
+        # Input del usuario
+        consulta = st.text_input("🔍 ¿Qué quieres saber del chat?", "")
+
+        # Filtro opcional por usuario
+        usuarios = df['user'].dropna().unique().tolist()
+        usuario_filtrado = st.selectbox("👤 Filtrar por usuario (opcional)", ["Todos"] + usuarios)
+
+        # Filtro opcional por año o mes
+        fechas = df['datetime'].dt.to_period('M').astype(str).unique().tolist()
+        fecha_filtrada = st.selectbox("🗓️ Filtrar por mes (opcional)", ["Todos"] + fechas)
+
+        # Filtrado de DataFrame
+        resultados = df.copy()
+        if usuario_filtrado != "Todos":
+            resultados = resultados[resultados['user'] == usuario_filtrado]
+        if fecha_filtrada != "Todos":
+            resultados = resultados[resultados['datetime'].dt.to_period('M').astype(str) == fecha_filtrada]
+
+        if consulta.strip():
+            palabras = consulta.lower().split()
+            resultados = resultados[resultados['message'].str.lower().apply(lambda m: any(p in m for p in palabras))]
+
+            if resultados.empty:
+                st.info("No se encontraron mensajes con esa consulta.")
+            else:
+                st.success(f"{len(resultados)} mensaje(s) encontrados:")
+                st.dataframe(resultados[['datetime', 'user', 'message']].rename(columns={
+                    'datetime': 'Fecha y hora',
+                    'user': 'Usuario',
+                    'message': 'Mensaje'
+                }))
+        else:
+            st.info("Escribe algo arriba para buscar en el chat.")
 
 
 else:
