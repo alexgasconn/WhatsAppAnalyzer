@@ -580,47 +580,61 @@ if uploaded_file:
         st.header("🎮 WhatsApp Chat Game: ¿Quién lo dijo?")
         st.write("Adivina quién envió el mensaje. ¡Pon a prueba tu memoria del chat!")
 
-
-        # Selecciona mensajes aleatorios que no sean multimedia ni enlaces ni vacíos
+        # Selecciona mensajes aleatorios válidos
         valid_msgs = df[
             (~df['has_media']) &
             (df['num_links'] == 0) &
             (df['message'].str.len() > 10)
-        ]
+        ].reset_index(drop=True)
+
         if valid_msgs.empty:
             st.info("No hay suficientes mensajes para jugar.")
         else:
             if 'game_idx' not in st.session_state:
-                st.session_state['game_idx'] = random.randint(0, len(valid_msgs) - 1)
+                st.session_state['game_idx'] = 0
                 st.session_state['score'] = 0
                 st.session_state['attempts'] = 0
+                st.session_state['asked'] = set()
+
+            # Función para obtener un índice no repetido
+            def next_idx():
+                remaining = set(range(len(valid_msgs))) - st.session_state['asked']
+                if not remaining:
+                    st.session_state['asked'] = set()
+                    remaining = set(range(len(valid_msgs)))
+                idx = random.choice(list(remaining))
+                st.session_state['asked'].add(idx)
+                return idx
 
             msg_row = valid_msgs.iloc[st.session_state['game_idx']]
             st.write(f"**Mensaje:** _{msg_row['message']}_")
 
             opciones = list(df['user'].dropna().unique())
+            if msg_row['user'] not in opciones:
+                opciones.append(msg_row['user'])
+            opciones = list(set(opciones))
             random.shuffle(opciones)
-            if msg_row['user'] not in opciones[:4]:
-                opciones = opciones[:3] + [msg_row['user']]
-                random.shuffle(opciones)
-            else:
-                opciones = opciones[:4]
+            opciones = opciones[:4] if msg_row['user'] in opciones[:4] else opciones[:3] + [msg_row['user']]
+            random.shuffle(opciones)
 
             respuesta = st.radio(
-    "¿Quién lo dijo?", 
-    opciones, 
-    key=f"radio_1_{st.session_state['game_idx']}"
-)
+                "¿Quién lo dijo?",
+                opciones,
+                key=f"radio_1_{st.session_state['game_idx']}_{st.session_state['attempts']}"
+            )
 
-            if st.button("Comprobar"):
-                st.session_state['attempts'] += 1
-                if respuesta == msg_row['user']:
-                    st.success("¡Correcto! 🎉")
-                    st.session_state['score'] += 1
-                else:
-                    st.error(f"Incorrecto. Era: {msg_row['user']}")
-                # Siguiente pregunta
-                st.session_state['game_idx'] = random.randint(0, len(valid_msgs) - 1)
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Comprobar", key="comprobar_btn"):
+                    st.session_state['attempts'] += 1
+                    if respuesta == msg_row['user']:
+                        st.success("¡Correcto! 🎉")
+                        st.session_state['score'] += 1
+                    else:
+                        st.error(f"Incorrecto. Era: {msg_row['user']}")
+            with col2:
+                if st.button("Siguiente", key="siguiente_btn"):
+                    st.session_state['game_idx'] = next_idx()
 
             st.write(f"Puntaje: {st.session_state['score']} / {st.session_state['attempts']}")
 
