@@ -31,7 +31,6 @@ function analyzeChat(text) {
 
   // --- General Statistics ---
   const users = [...new Set(data.map(d => d.user))];
-  const wordCount = data.reduce((acc, msg) => acc + msg.message.split(/\s+/).length, 0);
   const emojiList = [];
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   let linkCount = 0;
@@ -39,22 +38,48 @@ function analyzeChat(text) {
   let longestMessage = '';
   let messageTypes = { text: 0, media: 0, sticker: 0, other: 0 };
 
+  // Per-user stats
+  const wordsByUser = {};
+  const linksByUser = {};
+  const emojisByUser = {};
+  const longestMsgByUser = {};
+  const avgWordsByUser = {};
+
   data.forEach(d => {
     // Emojis
+    let emojiCount = 0;
     for (const char of d.message) {
-      if (window.emojiDictionary.hasEmoji(char)) emojiList.push(char);
+      if (window.emojiDictionary.hasEmoji(char)) {
+        emojiList.push(char);
+        emojiCount++;
+      }
     }
+    emojisByUser[d.user] = (emojisByUser[d.user] || 0) + emojiCount;
+
     // Links
-    if (urlRegex.test(d.message)) linkCount++;
+    if (urlRegex.test(d.message)) {
+      linkCount++;
+      linksByUser[d.user] = (linksByUser[d.user] || 0) + 1;
+    }
+
     // Longest message
     if (d.message.length > longestMessage.length) longestMessage = d.message;
+    if (!longestMsgByUser[d.user] || d.message.length > longestMsgByUser[d.user].length) {
+      longestMsgByUser[d.user] = d.message;
+    }
+
     // Message types (simple heuristic)
     if (d.message === '<Media omitted>') messageTypes.media++;
     else if (d.message === '<Sticker omitted>') messageTypes.sticker++;
     else if (d.message.trim().length === 0) messageTypes.other++;
     else messageTypes.text++;
+
     // Words
-    totalWords += d.message.split(/\s+/).filter(Boolean).length;
+    const wordCount = d.message.split(/\s+/).filter(Boolean).length;
+    totalWords += wordCount;
+    wordsByUser[d.user] = (wordsByUser[d.user] || 0) + wordCount;
+    avgWordsByUser[d.user] = (avgWordsByUser[d.user] || []);
+    avgWordsByUser[d.user].push(wordCount);
   });
 
   // Messages per day
@@ -64,13 +89,6 @@ function analyzeChat(text) {
     messagesPerDay[day] = (messagesPerDay[day] || 0) + 1;
   });
   const dayWithMostMessages = Object.entries(messagesPerDay).sort((a, b) => b[1] - a[1])[0];
-
-  // Words per user
-  const wordsByUser = {};
-  data.forEach(d => {
-    const count = d.message.split(/\s+/).filter(Boolean).length;
-    wordsByUser[d.user] = (wordsByUser[d.user] || 0) + count;
-  });
 
   // User participation %
   const userCounts = {};
@@ -100,7 +118,7 @@ function analyzeChat(text) {
 
   // --- Charts ---
 
-  // 1. Bar: Messages per User (already present)
+  // 1. Bar: Messages per User
   new Chart(document.getElementById('messagesByUser'), {
     type: 'bar',
     data: {
@@ -126,7 +144,7 @@ function analyzeChat(text) {
     }
   });
 
-  // 3. Bar: Most Used Emojis (already present)
+  // 3. Bar: Most Used Emojis
   const emojiFreq = {};
   emojiList.forEach(e => emojiFreq[e] = (emojiFreq[e] || 0) + 1);
   const topEmojis = Object.entries(emojiFreq).sort((a, b) => b[1] - a[1]).slice(0, 10);
@@ -161,7 +179,7 @@ function analyzeChat(text) {
     }
   });
 
-  // 5. Word Cloud (already present)
+  // 5. Word Cloud
   if (window.WordCloud) {
     WordCloud(document.getElementById('wordcloud'), {
       list: Object.entries(wordFreq).sort((a, b) => b[1] - a[1]).slice(0, 100),
@@ -177,35 +195,27 @@ function analyzeChat(text) {
   // 6. Line Chart: Daily Message Count
   const days = Object.keys(messagesPerDay).sort();
   const dailyCounts = days.map(d => messagesPerDay[d]);
-  if (window.Chart) {
-    new Chart(document.getElementById('dailyMessagesChart'), {
-      type: 'line',
-      data: {
-        labels: days,
-        datasets: [{
-          label: 'Messages per Day',
-          data: dailyCounts,
-          borderColor: 'rgba(0, 123, 255, 0.8)',
-          fill: false
-        }]
-      }
-    });
-  } else {
-    document.getElementById('dailyMessagesChart').innerHTML = '<p>Chart.js library not loaded.</p>';
-  }
+  new Chart(document.getElementById('dailyMessagesChart'), {
+    type: 'line',
+    data: {
+      labels: days,
+      datasets: [{
+        label: 'Messages per Day',
+        data: dailyCounts,
+        borderColor: 'rgba(0, 123, 255, 0.8)',
+        fill: false
+      }]
+    }
+  });
 
-  // 7. Heatmap: Activity by Hour and Weekday
-  // Prepare 2D array [weekday][hour]
+  // 7. Heatmap: Activity by Hour and Weekday (grouped bar fallback)
   const heatmapData = Array.from({ length: 7 }, () => new Array(24).fill(0));
   data.forEach(d => {
-    const weekday = d.datetime.getDay(); // 0=Sunday
+    const weekday = d.datetime.getDay();
     const hour = d.datetime.getHours();
     heatmapData[weekday][hour]++;
   });
-  // Flatten for Chart.js matrix plugin (or use a simple bar for each weekday-hour)
-  // Here, as a fallback, show as grouped bar chart
   const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  // Transpose heatmapData so each dataset is a weekday (for grouped bar)
   const datasets = weekdayNames.map((day, i) => ({
     label: day,
     data: heatmapData[i],
@@ -239,7 +249,7 @@ function analyzeChat(text) {
     }
   });
 
-  // 9. Bar: Messages by Hour (already present)
+  // 9. Bar: Messages by Hour
   const messagesPerHour = new Array(24).fill(0);
   data.forEach(d => messagesPerHour[d.datetime.getHours()]++);
   new Chart(document.getElementById('messagesByHour'), {
@@ -250,6 +260,89 @@ function analyzeChat(text) {
         label: 'Messages by Hour',
         data: messagesPerHour,
         backgroundColor: 'rgba(0, 123, 255, 0.6)'
+      }]
+    }
+  });
+
+  // --- NEW: Pie Chart for Message Types ---
+  // Add <canvas id="messageTypePie"></canvas> to your HTML
+  new Chart(document.getElementById('messageTypePie'), {
+    type: 'pie',
+    data: {
+      labels: Object.keys(messageTypes),
+      datasets: [{
+        label: 'Message Types',
+        data: Object.values(messageTypes),
+        backgroundColor: [
+          'rgba(40, 167, 69, 0.6)',
+          'rgba(255, 193, 7, 0.6)',
+          'rgba(153, 102, 255, 0.6)',
+          'rgba(220, 53, 69, 0.6)'
+        ]
+      }]
+    }
+  });
+
+  // --- NEW: Bar Chart for Average Words per Message per User ---
+  // Add <canvas id="avgWordsByUser"></canvas> to your HTML
+  const avgWordsUser = {};
+  Object.keys(avgWordsByUser).forEach(u => {
+    avgWordsUser[u] = (avgWordsByUser[u].reduce((a, b) => a + b, 0) / avgWordsByUser[u].length).toFixed(2);
+  });
+  new Chart(document.getElementById('avgWordsByUser'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(avgWordsUser),
+      datasets: [{
+        label: 'Avg Words per Message',
+        data: Object.values(avgWordsUser),
+        backgroundColor: 'rgba(255, 159, 64, 0.6)'
+      }]
+    }
+  });
+
+  // --- NEW: Bar Chart for Longest Message per User ---
+  // Add <canvas id="longestMsgByUser"></canvas> to your HTML
+  const longestMsgLenByUser = {};
+  Object.keys(longestMsgByUser).forEach(u => {
+    longestMsgLenByUser[u] = longestMsgByUser[u].length;
+  });
+  new Chart(document.getElementById('longestMsgByUser'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(longestMsgLenByUser),
+      datasets: [{
+        label: 'Longest Message Length',
+        data: Object.values(longestMsgLenByUser),
+        backgroundColor: 'rgba(54, 162, 235, 0.6)'
+      }]
+    }
+  });
+
+  // --- NEW: Bar Chart for Links Shared per User ---
+  // Add <canvas id="linksByUser"></canvas> to your HTML
+  new Chart(document.getElementById('linksByUser'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(linksByUser),
+      datasets: [{
+        label: 'Links Shared',
+        data: Object.values(linksByUser),
+        backgroundColor: 'rgba(75, 192, 192, 0.6)'
+      }]
+    }
+  });
+
+  // --- NEW: Bar Chart for Emoji Usage per User ---
+  // Add <canvas id="emojisByUser"></canvas> to your HTML
+  new Chart(document.getElementById('emojisByUser'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(emojisByUser),
+      datasets: [{
+        label: 'Emojis Used',
+        data: Object.values(emojisByUser),
+        backgroundColor: 'rgba(255, 205, 86, 0.6)'
       }]
     }
   });
@@ -325,14 +418,13 @@ function analyzeChat(text) {
   }
 
   // --- Games & Extras ---
+  // Fix: Who uses more emojis?
+  let maxEmojiUser = Object.entries(emojisByUser).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
   document.getElementById('gamesExtras').innerHTML = `
     <h3>Games & Extras</h3>
     <ul>
       <li><strong>Who wrote more?</strong> ${Object.entries(userCounts).sort((a, b) => b[1] - a[1])[0][0]}</li>
-      <li><strong>Who uses more emojis?</strong> ${Object.entries(users.reduce((acc, u) => { acc[u] = 0; return acc; }, {})).map(([u]) => {
-    acc[u] = data.filter(d => d.user === u).reduce((sum, d) => sum + [...d.message].filter(c => window.emojiDictionary.hasEmoji(c)).length, 0); return [u, acc[u]];
-  }).sort((a, b) => b[1] - a[1])[0][0]
-    }</li>
+      <li><strong>Who uses more emojis?</strong> ${maxEmojiUser}</li>
       <li><strong>Longest message:</strong> ${longestMessage.slice(0, 100)}${longestMessage.length > 100 ? '...' : ''}</li>
       <li><strong>Message types:</strong> Text: ${messageTypes.text}, Media: ${messageTypes.media}, Stickers: ${messageTypes.sticker}, Other: ${messageTypes.other}</li>
     </ul>
