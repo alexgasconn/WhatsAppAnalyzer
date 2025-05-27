@@ -162,29 +162,37 @@ function analyzeChat(text) {
   });
 
   // 5. Word Cloud (already present)
-  WordCloud(document.getElementById('wordcloud'), {
-    list: Object.entries(wordFreq).sort((a, b) => b[1] - a[1]).slice(0, 100),
-    gridSize: 10,
-    weightFactor: 3,
-    fontFamily: 'Arial',
-    color: 'random-dark'
-  });
+  if (window.WordCloud) {
+    WordCloud(document.getElementById('wordcloud'), {
+      list: Object.entries(wordFreq).sort((a, b) => b[1] - a[1]).slice(0, 100),
+      gridSize: 10,
+      weightFactor: 3,
+      fontFamily: 'Arial',
+      color: 'random-dark'
+    });
+  } else {
+    document.getElementById('wordcloud').innerHTML = '<p>WordCloud library not loaded.</p>';
+  }
 
   // 6. Line Chart: Daily Message Count
   const days = Object.keys(messagesPerDay).sort();
   const dailyCounts = days.map(d => messagesPerDay[d]);
-  new Chart(document.getElementById('dailyMessagesChart'), {
-    type: 'line',
-    data: {
-      labels: days,
-      datasets: [{
-        label: 'Messages per Day',
-        data: dailyCounts,
-        borderColor: 'rgba(0, 123, 255, 0.8)',
-        fill: false
-      }]
-    }
-  });
+  if (window.Chart) {
+    new Chart(document.getElementById('dailyMessagesChart'), {
+      type: 'line',
+      data: {
+        labels: days,
+        datasets: [{
+          label: 'Messages per Day',
+          data: dailyCounts,
+          borderColor: 'rgba(0, 123, 255, 0.8)',
+          fill: false
+        }]
+      }
+    });
+  } else {
+    document.getElementById('dailyMessagesChart').innerHTML = '<p>Chart.js library not loaded.</p>';
+  }
 
   // 7. Heatmap: Activity by Hour and Weekday
   // Prepare 2D array [weekday][hour]
@@ -197,22 +205,20 @@ function analyzeChat(text) {
   // Flatten for Chart.js matrix plugin (or use a simple bar for each weekday-hour)
   // Here, as a fallback, show as grouped bar chart
   const weekdayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const datasets = [];
-  for (let h = 0; h < 24; h++) {
-    datasets.push({
-      label: h + ':00',
-      data: heatmapData.map(row => row[h]),
-      backgroundColor: `rgba(0,123,255,${0.2 + 0.8 * (h / 23)})`
-    });
-  }
+  // Transpose heatmapData so each dataset is a weekday (for grouped bar)
+  const datasets = weekdayNames.map((day, i) => ({
+    label: day,
+    data: heatmapData[i],
+    backgroundColor: `rgba(0,123,255,${0.2 + 0.8 * (i / 6)})`
+  }));
   new Chart(document.getElementById('heatmapChart'), {
     type: 'bar',
     data: {
-      labels: weekdayNames,
+      labels: [...Array(24).keys()].map(h => h + ':00'),
       datasets: datasets
     },
     options: {
-      plugins: { legend: { display: false } },
+      plugins: { legend: { display: true } },
       title: { display: true, text: 'Activity by Hour and Weekday' },
       scales: { x: { stacked: true }, y: { stacked: true } }
     }
