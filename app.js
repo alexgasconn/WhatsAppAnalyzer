@@ -431,4 +431,128 @@ function analyzeChat(text) {
       <li><strong>Message types:</strong> Text: ${messageTypes.text}, Media: ${messageTypes.media}, Stickers: ${messageTypes.sticker}, Other: ${messageTypes.other}</li>
     </ul>
   `;
+
+
+  // --- Accumulated Messages in Time (per user and general) ---
+
+  // Prepare data sorted by date
+  const sortedData = [...data].sort((a, b) => a.datetime - b.datetime);
+  const accumulatedByDay = {};
+  const accumulatedByUser = {};
+  const allDays = [];
+  let total = 0;
+
+  // Build per-day and per-user accumulated counts
+  sortedData.forEach(d => {
+    const day = d.datetime.toISOString().slice(0, 10);
+    if (!accumulatedByDay[day]) {
+      accumulatedByDay[day] = total;
+      allDays.push(day);
+    }
+    total++;
+    accumulatedByDay[day] = total;
+
+    // Per user
+    accumulatedByUser[d.user] = accumulatedByUser[d.user] || {};
+    accumulatedByUser[d.user][day] = (accumulatedByUser[d.user][day] || 0) + 1;
+  });
+
+  // Build accumulated arrays for plotting
+  const accumulatedGeneral = [];
+  const accumulatedUsers = {};
+  let runningTotal = 0;
+  allDays.forEach(day => {
+    runningTotal = accumulatedByDay[day];
+    accumulatedGeneral.push(runningTotal);
+    // Per user
+    Object.keys(accumulatedByUser).forEach(user => {
+      accumulatedUsers[user] = accumulatedUsers[user] || [];
+      const prev = accumulatedUsers[user].length > 0 ? accumulatedUsers[user][accumulatedUsers[user].length - 1] : 0;
+      accumulatedUsers[user].push(prev + (accumulatedByUser[user][day] || 0));
+    });
+  });
+
+  // Plot accumulated messages
+  const datasetsAccum = [
+    {
+      label: 'Total',
+      data: accumulatedGeneral,
+      borderColor: 'black',
+      fill: false,
+      tension: 0.1
+    }
+  ];
+  Object.keys(accumulatedUsers).forEach(user => {
+    datasetsAccum.push({
+      label: user,
+      data: accumulatedUsers[user],
+      borderColor: `hsl(${(Object.keys(accumulatedUsers).indexOf(user) * 360) / Object.keys(accumulatedUsers).length},70%,50%)`,
+      fill: false,
+      tension: 0.1
+    });
+  });
+  new Chart(document.getElementById('accumulatedMessages'), {
+    type: 'line',
+    data: {
+      labels: allDays,
+      datasets: datasetsAccum
+    },
+    options: {
+      plugins: { title: { display: true, text: 'Accumulated Messages Over Time' } },
+      scales: { x: { title: { display: true, text: 'Date' } }, y: { title: { display: true, text: 'Messages' } } }
+    }
+  });
+
+  // --- Accumulated Messages with Rolling Mean (per user and general) ---
+
+  function rollingMean(arr, windowSize) {
+    const result = [];
+    for (let i = 0; i < arr.length; i++) {
+      const start = Math.max(0, i - windowSize + 1);
+      const window = arr.slice(start, i + 1);
+      result.push(window.reduce((a, b) => a + b, 0) / window.length);
+    }
+    return result;
+  }
+
+  // Daily messages per user
+  const dailyMessagesByUser = {};
+  Object.keys(accumulatedByUser).forEach(user => {
+    dailyMessagesByUser[user] = allDays.map(day => accumulatedByUser[user][day] || 0);
+  });
+  const dailyMessagesGeneral = allDays.map(day => Object.values(accumulatedByUser).reduce((sum, userObj) => sum + (userObj[day] || 0), 0));
+
+  // Rolling mean (window size 7 days)
+  const windowSize = 7;
+  const datasetsRolling = [
+    {
+      label: 'Total (Rolling Mean)',
+      data: rollingMean(dailyMessagesGeneral, windowSize),
+      borderColor: 'black',
+      borderDash: [5, 5],
+      fill: false,
+      tension: 0.1
+    }
+  ];
+  Object.keys(dailyMessagesByUser).forEach(user => {
+    datasetsRolling.push({
+      label: user + ' (Rolling Mean)',
+      data: rollingMean(dailyMessagesByUser[user], windowSize),
+      borderColor: `hsl(${(Object.keys(dailyMessagesByUser).indexOf(user) * 360) / Object.keys(dailyMessagesByUser).length},70%,70%)`,
+      fill: false,
+      tension: 0.1
+    });
+  });
+
+  new Chart(document.getElementById('accumulatedMessagesRolling'), {
+    type: 'line',
+    data: {
+      labels: allDays,
+      datasets: datasetsRolling
+    },
+    options: {
+      plugins: { title: { display: true, text: 'Accumulated Messages (Rolling Mean, 7 days)' } },
+      scales: { x: { title: { display: true, text: 'Date' } }, y: { title: { display: true, text: 'Messages (mean)' } } }
+    }
+  });
 }

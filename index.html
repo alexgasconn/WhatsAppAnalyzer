@@ -29,14 +29,22 @@
   <div id="summaryTab" class="tab-content" style="display:block;">
     <div id="summary"></div>
     <div id="generalStats"></div>
+    <canvas id="messageTypePie"></canvas>
+    <canvas id="avgWordsByUser"></canvas>
+    <canvas id="longestMsgByUser"></canvas>
+    <canvas id="linksByUser"></canvas>
+    <canvas id="emojisByUser"></canvas>
   </div>
   <div id="activityTab" class="tab-content" style="display:none;">
     <canvas id="dailyMessagesChart"></canvas>
     <canvas id="heatmapChart"></canvas>
     <canvas id="messagesByWeekday"></canvas>
     <canvas id="messagesByHour"></canvas>
+    <canvas id="accumulatedMessages"></canvas>
+    <canvas id="accumulatedMessagesRolling"></canvas>
   </div>
   <div id="participationTab" class="tab-content" style="display:none;">
+    <canvas id="messagesByUser"></canvas>
     <canvas id="wordsByUser"></canvas>
     <canvas id="userParticipation"></canvas>
   </div>
@@ -46,20 +54,11 @@
     <canvas id="commonWordsChart"></canvas>
   </div>
   <div id="advancedTab" class="tab-content" style="display:none;">
-    <!-- Add advanced stats here -->
-    <p>Advanced statistics coming soon...</p>
     <div id="sentimentStats"></div>
     <canvas id="sentimentHistogram"></canvas>
     <canvas id="sentimentByUser"></canvas>
     <div id="gamesExtras"></div>
   </div>
-
-  <!-- Example: Add these where you want the new charts to appear -->
-  <canvas id="messageTypePie"></canvas>
-  <canvas id="avgWordsByUser"></canvas>
-  <canvas id="longestMsgByUser"></canvas>
-  <canvas id="linksByUser"></canvas>
-  <canvas id="emojisByUser"></canvas>
 
   <style>
     .tabs {
