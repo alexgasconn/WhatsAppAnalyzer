@@ -562,4 +562,65 @@ function analyzeChat(text) {
       scales: { x: { title: { display: true, text: 'Date' } }, y: { title: { display: true, text: 'Messages (mean)' } } }
     }
   });
+
+  // --- Message Length Distribution (Histogram) ---
+  const messageLengths = data.map(d => d.message.length);
+  const bins = Array(21).fill(0); // 0-9, 10-19, ..., 200+
+  messageLengths.forEach(len => {
+    const bin = Math.min(Math.floor(len / 10), 20);
+    bins[bin]++;
+  });
+  const binLabels = Array.from({ length: 20 }, (_, i) => `${i * 10}-${i * 10 + 9}`).concat(['200+']);
+
+  new Chart(document.getElementById('messageLengthHistogram'), {
+    type: 'bar',
+    data: {
+      labels: binLabels,
+      datasets: [{
+        label: 'Message Length Distribution',
+        data: bins,
+        backgroundColor: 'rgba(54, 162, 235, 0.6)'
+      }]
+    },
+    options: {
+      plugins: { title: { display: true, text: 'Message Length Histogram' } },
+      scales: { x: { title: { display: true, text: 'Message Length (chars)' } }, y: { title: { display: true, text: 'Count' } } }
+    }
+  });
+
+  // --- Message Length Boxplot (per user) ---
+  // Chart.js does not support boxplots/violinplots natively, but you can use chartjs-chart-box-and-violin-plot plugin
+  // CDN: https://cdn.jsdelivr.net/npm/chartjs-chart-box-and-violin-plot/build/Chart.BoxPlot.js
+  // Add this script in your HTML before app.js:
+  // <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-box-and-violin-plot/build/Chart.BoxPlot.js"></script>
+
+  const lengthsByUser = {};
+  data.forEach(d => {
+    lengthsByUser[d.user] = lengthsByUser[d.user] || [];
+    lengthsByUser[d.user].push(d.message.length);
+  });
+  const boxplotData = Object.values(lengthsByUser).map(arr => ({
+    min: Math.min(...arr),
+    max: Math.max(...arr),
+    median: arr.slice().sort((a, b) => a - b)[Math.floor(arr.length / 2)],
+    q1: arr.slice().sort((a, b) => a - b)[Math.floor(arr.length / 4)],
+    q3: arr.slice().sort((a, b) => a - b)[Math.floor(arr.length * 3 / 4)],
+    outliers: arr.filter(l => l < Math.min(...arr) || l > Math.max(...arr))
+  }));
+
+  new Chart(document.getElementById('messageLengthBoxplot'), {
+    type: 'boxplot',
+    data: {
+      labels: Object.keys(lengthsByUser),
+      datasets: [{
+        label: 'Message Lengths',
+        data: Object.values(lengthsByUser),
+        backgroundColor: 'rgba(255, 99, 132, 0.5)'
+      }]
+    },
+    options: {
+      plugins: { title: { display: true, text: 'Message Length Boxplot (per user)' } },
+      scales: { y: { title: { display: true, text: 'Message Length (chars)' } } }
+    }
+  });
 }
