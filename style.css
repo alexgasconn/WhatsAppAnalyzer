@@ -1,0 +1,24 @@
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #f5f5f5;
+  color: #333;
+}
+header {
+  background-color: #007bff;
+  color: white;
+  padding: 20px;
+  text-align: center;
+}
+main {
+  padding: 20px;
+}
+input[type="file"] {
+  margin-top: 10px;
+}
+canvas {
+  max-width: 100%;
+  margin-bottom: 40px;
+}

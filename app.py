@@ -580,7 +580,7 @@ if uploaded_file:
         st.header("🎮 WhatsApp Chat Game: ¿Quién lo dijo?")
         st.write("Adivina quién envió el mensaje. ¡Pon a prueba tu memoria del chat!")
 
-        # Selecciona mensajes aleatorios válidos
+        # Filtrar mensajes válidos para el juego
         valid_msgs = df[
             (~df['has_media']) &
             (df['num_links'] == 0) &
@@ -590,53 +590,104 @@ if uploaded_file:
         if valid_msgs.empty:
             st.info("No hay suficientes mensajes para jugar.")
         else:
+            # Inicializar estado del juego
+            if 'game_score' not in st.session_state:
+                st.session_state['game_score'] = 0
+            if 'game_attempts' not in st.session_state:
+                st.session_state['game_attempts'] = 0
             if 'game_idx' not in st.session_state:
-                st.session_state['game_idx'] = 0
-                st.session_state['score'] = 0
-                st.session_state['attempts'] = 0
-                st.session_state['asked'] = set()
+                st.session_state['game_idx'] = np.random.randint(len(valid_msgs))
 
-            # Función para obtener un índice no repetido
-            def next_idx():
-                remaining = set(range(len(valid_msgs))) - st.session_state['asked']
-                if not remaining:
-                    st.session_state['asked'] = set()
-                    remaining = set(range(len(valid_msgs)))
-                idx = random.choice(list(remaining))
-                st.session_state['asked'].add(idx)
-                return idx
-
+            # Seleccionar mensaje actual
             msg_row = valid_msgs.iloc[st.session_state['game_idx']]
             st.write(f"**Mensaje:** _{msg_row['message']}_")
 
-            opciones = list(df['user'].dropna().unique())
-            if msg_row['user'] not in opciones:
-                opciones.append(msg_row['user'])
-            opciones = list(set(opciones))
-            random.shuffle(opciones)
-            opciones = opciones[:4] if msg_row['user'] in opciones[:4] else opciones[:3] + [msg_row['user']]
-            random.shuffle(opciones)
+            # Opciones de usuario (4 aleatorias, incluyendo la correcta)
+            all_users = df['user'].dropna().unique().tolist()
+            opciones = set(np.random.choice(all_users, min(4, len(all_users)), replace=False))
+            opciones.add(msg_row['user'])
+            opciones = list(opciones)
+            np.random.shuffle(opciones)
 
             respuesta = st.radio(
                 "¿Quién lo dijo?",
                 opciones,
-                key=f"radio_1_{st.session_state['game_idx']}_{st.session_state['attempts']}"
+                key=f"radio_game_{st.session_state['game_idx']}_{st.session_state['game_attempts']}"
             )
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("Comprobar", key="comprobar_btn"):
-                    st.session_state['attempts'] += 1
+                if st.button("Comprobar"):
+                    st.session_state['game_attempts'] += 1
                     if respuesta == msg_row['user']:
                         st.success("¡Correcto! 🎉")
-                        st.session_state['score'] += 1
+                        st.session_state['game_score'] += 1
                     else:
                         st.error(f"Incorrecto. Era: {msg_row['user']}")
             with col2:
-                if st.button("Siguiente", key="siguiente_btn"):
-                    st.session_state['game_idx'] = next_idx()
+                if st.button("Siguiente"):
+                    st.session_state['game_idx'] = np.random.randint(len(valid_msgs))
 
-            st.write(f"Puntaje: {st.session_state['score']} / {st.session_state['attempts']}")
+            st.write(f"Puntaje: {st.session_state['game_score']} / {st.session_state['game_attempts']}")
+
+        st.header("🎲 ¿Quién dijo esta palabra más veces?")
+        st.write("Adivina quién ha dicho más veces una palabra elegida al azar.")
+
+        # Preparar palabras candidatas
+        all_words = re.findall(r'\b\w+\b', ' '.join(df['message'].tolist()).lower())
+        stopwords = set([
+            "multimedia", "media", "omitido", "enlace", "link", "null", "mensaje", "este", "eliminado",
+            "elimino", "eliminó", "omitted", "https", "status", "deleted", "para", "pero", "como", "todo",
+            "esta", "con", "que", "los", "las", "por", "una", "unos", "unas", "del", "sus", "muy",
+            "más", "menos", "tiene", "tienen", "fue", "son", "era", "eres", "soy", "han", "hay", "aqui",
+            "aquí", "ese", "esa"
+        ])
+        words = [w for w in all_words if len(w) > 3 and w not in stopwords]
+
+        if words:
+            if 'word_game_score' not in st.session_state:
+                st.session_state['word_game_score'] = 0
+            if 'word_game_attempts' not in st.session_state:
+                st.session_state['word_game_attempts'] = 0
+            if 'word_game_word' not in st.session_state:
+                st.session_state['word_game_word'] = np.random.choice(words)
+
+            word = st.session_state['word_game_word']
+            st.write(f"**Palabra:** _{word}_")
+
+            # Contar ocurrencias por usuario
+            user_counts = df.groupby('user')['message'].apply(lambda msgs: msgs.str.lower().str.count(rf'\b{re.escape(word)}\b').sum())
+            user_counts = user_counts[user_counts > 0]
+            opciones_word = user_counts.index.tolist()
+
+            if len(opciones_word) < 2:
+                st.info("No hay suficientes usuarios que hayan dicho esta palabra. Se elige otra palabra.")
+                st.session_state['word_game_word'] = np.random.choice(words)
+            else:
+                np.random.shuffle(opciones_word)
+                respuesta_word = st.radio(
+                    "¿Quién dijo esta palabra más veces?",
+                    opciones_word,
+                    key=f"radio_word_{word}_{st.session_state['word_game_attempts']}"
+                )
+
+                colw1, colw2 = st.columns(2)
+                with colw1:
+                    if st.button("Comprobar palabra"):
+                        st.session_state['word_game_attempts'] += 1
+                        ganador = user_counts.idxmax()
+                        if respuesta_word == ganador:
+                            st.success(f"¡Correcto! {ganador} dijo '{word}' {user_counts.max()} veces.")
+                            st.session_state['word_game_score'] += 1
+                        else:
+                            st.error(f"Incorrecto. Era: {ganador} ({user_counts.max()} veces).")
+                with colw2:
+                    if st.button("Siguiente palabra"):
+                        st.session_state['word_game_word'] = np.random.choice(words)
+
+                st.write(f"Puntaje: {st.session_state['word_game_score']} / {st.session_state['word_game_attempts']}")
+        else:
+            st.info("No hay suficientes palabras para jugar a este juego.")
 
 else:
     st.info("Please upload a WhatsApp chat file to begin.")

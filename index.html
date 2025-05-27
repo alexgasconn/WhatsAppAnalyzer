@@ -4,22 +4,99 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WhatsApp File Analyzer</title>
+  <title>WhatsApp Chat Analyzer</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sentiment@5.0.2/build/sentiment.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/emoji-dictionary@1.0.3/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.1.2/src/wordcloud2.min.js"></script>
 </head>
 
 <body>
-  <h1>WhatsApp File Analyzer</h1>
-  <input type="file" id="fileInput" accept=".txt" />
-  <button onclick="handleFile()">Analyze</button>
-  <pre id="output"></pre>
-  <div id="stats"></div>
-  <canvas id="chart" width="400" height="200"></canvas>
-  <canvas id="hourlyChart" width="400" height="200"></canvas>
-  <canvas id="dayHourHeatmap" width="400" height="200"></canvas>
-  <canvas id="monthYearHeatmap" width="400" height="200"></canvas>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix"></script>
-  <script src="script.js"></script>
+  <header>
+    <h1>📱 WhatsApp Chat Analyzer</h1>
+    <input type="file" id="fileInput" accept=".txt" />
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('summaryTab')">Stats</button>
+    <button class="tab-btn" onclick="showTab('activityTab')">Activity</button>
+    <button class="tab-btn" onclick="showTab('participationTab')">Participation</button>
+    <button class="tab-btn" onclick="showTab('emojiTab')">Emojis</button>
+    <button class="tab-btn" onclick="showTab('advancedTab')">Advanced</button>
+  </div>
+
+  <div id="summaryTab" class="tab-content" style="display:block;">
+    <div id="summary"></div>
+    <div id="generalStats"></div>
+    <canvas id="messageTypePie"></canvas>
+    <canvas id="avgWordsByUser"></canvas>
+    <canvas id="longestMsgByUser"></canvas>
+    <canvas id="linksByUser"></canvas>
+    <canvas id="emojisByUser"></canvas>
+  </div>
+  <div id="activityTab" class="tab-content" style="display:none;">
+    <canvas id="dailyMessagesChart"></canvas>
+    <canvas id="heatmapChart"></canvas>
+    <canvas id="messagesByWeekday"></canvas>
+    <canvas id="messagesByHour"></canvas>
+    <canvas id="accumulatedMessages"></canvas>
+    <canvas id="accumulatedMessagesRolling"></canvas>
+    <canvas id="messageLengthHistogram"></canvas>
+    <canvas id="messageLengthBoxplot"></canvas>
+  </div>
+  <div id="participationTab" class="tab-content" style="display:none;">
+    <canvas id="messagesByUser"></canvas>
+    <canvas id="wordsByUser"></canvas>
+    <canvas id="userParticipation"></canvas>
+  </div>
+  <div id="emojiTab" class="tab-content" style="display:none;">
+    <canvas id="emojiChart"></canvas>
+    <div id="wordcloud" style="width: 400px; height: 300px;"></div>
+    <canvas id="commonWordsChart"></canvas>
+  </div>
+  <div id="advancedTab" class="tab-content" style="display:none;">
+    <div id="sentimentStats"></div>
+    <canvas id="sentimentHistogram"></canvas>
+    <canvas id="sentimentByUser"></canvas>
+    <div id="gamesExtras"></div>
+  </div>
+
+  <style>
+    .tabs {
+      margin-bottom: 1em;
+    }
+
+    .tab-btn {
+      padding: 8px 16px;
+      margin-right: 4px;
+      cursor: pointer;
+      border: none;
+      background: #eee;
+    }
+
+    .tab-btn.active {
+      background: #007bff;
+      color: #fff;
+    }
+
+    .tab-content {
+      margin-top: 1em;
+    }
+  </style>
+
+  <script>
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(div => div.style.display = 'none');
+      document.getElementById(tabId).style.display = 'block';
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+
+
+    }
+  </script>
+
+  <script src="app.js"></script>
 </body>
 
 </html>
