@@ -18,9 +18,7 @@ main {
 input[type="file"] {
   margin-top: 10px;
 }
-section {
-  margin-top: 30px;
-}
 canvas {
   max-width: 100%;
+  margin-bottom: 40px;
 }
