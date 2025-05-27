@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,20 +11,84 @@
   <script src="https://cdn.jsdelivr.net/npm/emoji-dictionary@1.0.3/index.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.1.2/src/wordcloud2.min.js"></script>
 </head>
+
 <body>
   <header>
     <h1>📱 WhatsApp Chat Analyzer</h1>
     <input type="file" id="fileInput" accept=".txt" />
   </header>
-  <main>
-    <section id="summary"></section>
-    <section>
-      <canvas id="messagesByHour"></canvas>
-      <canvas id="messagesByUser"></canvas>
-      <canvas id="emojiChart"></canvas>
-      <div id="wordcloud" style="width: 100%; height: 300px;"></div>
-    </section>
-  </main>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('summaryTab')">📊 Stats</button>
+    <button class="tab-btn" onclick="showTab('activityTab')">📈 Activity</button>
+    <button class="tab-btn" onclick="showTab('participationTab')">🗣️ Participation</button>
+    <button class="tab-btn" onclick="showTab('emojiTab')">😂 Emojis & Wordcloud</button>
+    <button class="tab-btn" onclick="showTab('advancedTab')">🔍 Advanced</button>
+  </div>
+
+  <div id="summaryTab" class="tab-content" style="display:block;">
+    <div id="summary"></div>
+    <div id="generalStats"></div>
+  </div>
+  <div id="activityTab" class="tab-content" style="display:none;">
+    <canvas id="dailyMessagesChart"></canvas>
+    <canvas id="heatmapChart"></canvas>
+    <canvas id="messagesByWeekday"></canvas>
+    <canvas id="messagesByHour"></canvas>
+  </div>
+  <div id="participationTab" class="tab-content" style="display:none;">
+    <canvas id="wordsByUser"></canvas>
+    <canvas id="userParticipation"></canvas>
+  </div>
+  <div id="emojiTab" class="tab-content" style="display:none;">
+    <canvas id="emojiChart"></canvas>
+    <div id="wordcloud" style="width: 400px; height: 300px;"></div>
+    <canvas id="commonWordsChart"></canvas>
+  </div>
+  <div id="advancedTab" class="tab-content" style="display:none;">
+    <!-- Add advanced stats here -->
+    <p>Advanced statistics coming soon...</p>
+    <div id="sentimentStats"></div>
+    <canvas id="sentimentHistogram"></canvas>
+    <canvas id="sentimentByUser"></canvas>
+    <div id="gamesExtras"></div>
+  </div>
+
+  <style>
+    .tabs {
+      margin-bottom: 1em;
+    }
+
+    .tab-btn {
+      padding: 8px 16px;
+      margin-right: 4px;
+      cursor: pointer;
+      border: none;
+      background: #eee;
+    }
+
+    .tab-btn.active {
+      background: #007bff;
+      color: #fff;
+    }
+
+    .tab-content {
+      margin-top: 1em;
+    }
+  </style>
+
+  <script>
+    function showTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(div => div.style.display = 'none');
+      document.getElementById(tabId).style.display = 'block';
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+
+
+    }
+  </script>
+
   <script src="app.js"></script>
 </body>
+
 </html>
