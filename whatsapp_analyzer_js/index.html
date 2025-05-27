@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WhatsApp Chat Analyzer</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sentiment@5.0.2/build/sentiment.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/emoji-dictionary@1.0.3/index.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>📱 WhatsApp Chat Analyzer</h1>
+    <input type="file" id="fileInput" accept=".txt" />
+  </header>
+  <main>
+    <section id="summary"></section>
+    <section id="charts"></section>
+    <section id="wordcloud"></section>
+    <section id="sentiment"></section>
+    <section id="assistant"></section>
+    <section id="games"></section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
