@@ -49,7 +49,7 @@ function analyzeChat(text) {
     // Emojis
     let emojiCount = 0;
     for (const char of d.message) {
-      if (window.emojiDictionary.hasEmoji(char)) {
+      if (window.emojiDictionary.getName(char)) {
         emojiList.push(char);
         emojiCount++;
       }
