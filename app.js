@@ -48,10 +48,12 @@ function analyzeChat(text) {
   data.forEach(d => {
     // Emojis
     let emojiCount = 0;
-    for (const char of d.message) {
-      if (window.emojiDictionary.getName(char)) {
-        emojiList.push(char);
-        emojiCount++;
+    if (window.emojiDictionary && typeof window.emojiDictionary.getName === "function") {
+      for (const char of d.message) {
+        if (window.emojiDictionary.getName(char)) {
+          emojiList.push(char);
+          emojiCount++;
+        }
       }
     }
     emojisByUser[d.user] = (emojisByUser[d.user] || 0) + emojiCount;
