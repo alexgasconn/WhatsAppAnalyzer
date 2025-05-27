@@ -533,7 +533,7 @@ if uploaded_file:
             "elimino", "eliminó", "omitted", "https", "status", "deleted", "para", "pero", "como", "todo",
             "esta", "esta", "con", "que", "los", "las", "por", "una", "unos", "unas", "del", "sus", "muy",
             "más", "menos", "tiene", "tienen", "fue", "son", "era", "eres", "soy", "han", "hay", "aqui",
-            "aquí", "ese", "esa", "ese", "esa", "ese", "esa", "ese", "esa", "ese", "esa", "ese", "esa"
+            "aquí", "ese", "esa"
         ])
         words = [w for w in words if len(w) > 3 and w not in stopwords]
         if words:
