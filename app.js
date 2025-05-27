@@ -183,12 +183,19 @@ function analyzeChat(text) {
 
   // 5. Word Cloud
   if (window.WordCloud) {
+    // Limit to top 50 words for performance
+    const wordList = Object.entries(wordFreq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 50);
+
     WordCloud(document.getElementById('wordcloud'), {
-      list: Object.entries(wordFreq).sort((a, b) => b[1] - a[1]).slice(0, 100),
-      gridSize: 10,
-      weightFactor: 3,
+      list: wordList,
+      gridSize: 12,         // slightly larger grid for less detail
+      weightFactor: 2,      // smaller words
       fontFamily: 'Arial',
-      color: 'random-dark'
+      color: 'random-dark',
+      backgroundColor: '#fff',
+      drawOutOfBound: false // don't try to draw outside canvas
     });
   } else {
     document.getElementById('wordcloud').innerHTML = '<p>WordCloud library not loaded.</p>';
@@ -254,7 +261,7 @@ function analyzeChat(text) {
   // 9. Bar: Messages by Hour
   const messagesPerHour = new Array(24).fill(0);
   data.forEach(d => messagesPerHour[d.datetime.getHours()]++);
-  new Chart(document.getElementById('messagesByHour'), {
+  new Chart(document.getElementById('messagesPerHour'), {
     type: 'bar',
     data: {
       labels: [...Array(24).keys()].map(h => h + ':00'),
