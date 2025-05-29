@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>WhatsApp Chat Analyzer</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
@@ -11,7 +11,6 @@
   <script src="https://cdn.jsdelivr.net/npm/emoji-dictionary@1.0.3/index.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.1.2/src/wordcloud2.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-box-and-violin-plot/build/Chart.BoxPlot.js"></script>
-  <script src="app.js"></script>
 </head>
 
 <body>
@@ -38,49 +37,43 @@
     <canvas id="emojisByUser"></canvas>
   </div>
 
-
   <div id="activityTab" class="tab-content" style="display:none;">
     <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
       <div style="flex: 1;">
         <h4>Total Accumulated</h4>
         <canvas id="accumulatedMessages"></canvas>
-      </div>
-      <div style="flex: 1;">
-        <h4>Total Accumulated (Rolling Mean)</h4>
         <canvas id="accumulatedMessagesRolling"></canvas>
+        <canvas id="dailyMessagesChart"></canvas>
+        <canvas id="messagesByHour"></canvas>
+        <canvas id="messagesByWeekday"></canvas>
+        <canvas id="heatmapChart"></canvas>
       </div>
-    </div>
-
-    <hr style="margin: 2rem 0;" />
-
-    <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
       <div style="flex: 1;">
         <h4>User Accumulated</h4>
         <canvas id="accumulatedMessagesUsers"></canvas>
-      </div>
-      <div style="flex: 1;">
-        <h4>User Accumulated (Rolling Mean)</h4>
         <canvas id="accumulatedMessagesRollingUsers"></canvas>
       </div>
     </div>
   </div>
-
-
 
   <div id="participationTab" class="tab-content" style="display:none;">
     <canvas id="messagesByUser"></canvas>
     <canvas id="wordsByUser"></canvas>
     <canvas id="userParticipation"></canvas>
   </div>
+
   <div id="emojiTab" class="tab-content" style="display:none;">
     <canvas id="emojiChart"></canvas>
     <div id="wordcloud" style="width: 300px; height: 200px;"></div>
     <canvas id="commonWordsChart"></canvas>
   </div>
+
   <div id="advancedTab" class="tab-content" style="display:none;">
     <div id="sentimentStats"></div>
     <canvas id="sentimentHistogram"></canvas>
     <canvas id="sentimentByUser"></canvas>
+    <canvas id="messageLengthHistogram"></canvas>
+    <canvas id="messageLengthBoxplot"></canvas>
     <div id="gamesExtras"></div>
   </div>
 
@@ -95,11 +88,17 @@
       cursor: pointer;
       border: none;
       background: #eee;
+      border-radius: 4px;
+      transition: background 0.3s;
     }
 
     .tab-btn.active {
       background: #007bff;
       color: #fff;
+    }
+
+    .tab-btn:hover {
+      background: #ccc;
     }
 
     .tab-content {
@@ -112,6 +111,7 @@
       document.querySelectorAll('.tab-content').forEach(div => div.style.display = 'none');
       document.getElementById(tabId).style.display = 'block';
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelector(`.tab-btn[onclick="showTab('${tabId}')"]`).classList.add('active');
     }
   </script>
 
