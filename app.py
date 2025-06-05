@@ -83,7 +83,7 @@ if uploaded_file:
 
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
         "📊 Estadísticas", "📈 Actividad", "🗣️ Participación", "😂 Emojis y Wordcloud", "🔍 Avanzado", 
-        "🧠 NLP", "🧠 Chat Assistant", "🎮 Game", "📬 Comparador de Chats"
+        "🧠 NLP", "🧠 Chat Assistant", "🎮 Game", "📬 Comparador de Xats"
     ])
 
 
