@@ -61,6 +61,17 @@ if uploaded_file:
     df['month'] = df['datetime'].dt.to_period('M')
     df['weekday'] = df['datetime'].dt.day_name()
 
+    min_date = df['datetime'].min().date()
+    max_date = df['datetime'].max().date()
+    
+    start_date, end_date = st.sidebar.date_input(
+        "Filtrar por rango de fechas",
+        value=(min_date, max_date),
+        min_value=min_date,
+        max_value=max_date
+    )
+
+
     # Extract URLs
     extractor = URLExtract()
     df['num_words'] = df['message'].apply(lambda x: len(x.split()))
