@@ -207,7 +207,7 @@ if uploaded_file:
 
     with tab3:
         st.header("🗣️ Participación")
-        st.subheader("Mensajes por usuario")
+        st.subheader("Mensajes por user")
         user_msg_count = df['user'].value_counts()
         st.bar_chart(user_msg_count)
 
