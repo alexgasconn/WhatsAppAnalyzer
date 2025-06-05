@@ -81,8 +81,9 @@ if uploaded_file:
     # Sentiment
     df['sentiment'] = df['message'].apply(get_sentiment)
 
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-        "📊 Estadísticas", "📈 Actividad", "🗣️ Participación", "😂 Emojis y Wordcloud", "🔍 Avanzado", "🧠 NLP", "🧠 Chat Assistant","🎮 Game"
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+        "📊 Estadísticas", "📈 Actividad", "🗣️ Participación", "😂 Emojis y Wordcloud", "🔍 Avanzado", 
+        "🧠 NLP", "🧠 Chat Assistant", "🎮 Game", "📬 Comparador de Chats"
     ])
 
 
@@ -699,6 +700,107 @@ if uploaded_file:
                 st.write(f"Puntaje: {st.session_state['word_game_score']} / {st.session_state['word_game_attempts']}")
         else:
             st.info("No hay suficientes palabras para jugar a este juego.")
+
+    with tab9:
+        st.header("📬 Comparador de Chats Individuales")
+    
+        st.markdown("Sube **dos archivos de WhatsApp** para compararlos y selecciona quién eres tú.")
+    
+        file1 = st.file_uploader("Chat 1 (.txt)", type="txt", key="chat1")
+        file2 = st.file_uploader("Chat 2 (.txt)", type="txt", key="chat2")
+    
+        def parse_chat(uploaded_file):
+            raw = uploaded_file.read().decode("utf-8")
+            lines = raw.splitlines()
+            rows = []
+            pattern = r'^(\d{1,2}/\d{1,2}/\d{2,4}), (\d{1,2}:\d{2}) - ([^:]+): (.*)$'
+            for line in lines:
+                match = re.match(pattern, line)
+                if match:
+                    date, time, user, msg = match.groups()
+                    try:
+                        dt = datetime.strptime(f"{date} {time}", "%d/%m/%Y %H:%M")
+                    except:
+                        try:
+                            dt = datetime.strptime(f"{date} {time}", "%d/%m/%y %H:%M")
+                        except:
+                            continue
+                    rows.append({'datetime': dt, 'user': user.strip(), 'message': msg.strip()})
+            return pd.DataFrame(rows)
+    
+        if file1 and file2:
+            df1 = parse_chat(file1)
+            df2 = parse_chat(file2)
+    
+            if df1.empty or df2.empty:
+                st.warning("No se pudieron leer correctamente los archivos.")
+                st.stop()
+    
+            users_1 = sorted(df1['user'].unique().tolist())
+            users_2 = sorted(df2['user'].unique().tolist())
+            all_users = list(set(users_1 + users_2))
+    
+            selected_user = st.selectbox("¿Cuál es tu nombre en los chats?", all_users)
+    
+            # Eliminar tus propios mensajes
+            df1 = df1[df1['user'] != selected_user]
+            df2 = df2[df2['user'] != selected_user]
+    
+            # Preparar métricas
+            def enrich(df):
+                df['date'] = df['datetime'].dt.date
+                df['hour'] = df['datetime'].dt.hour
+                df['num_words'] = df['message'].apply(lambda x: len(x.split()))
+                df['sentiment'] = df['message'].apply(get_sentiment)
+                return df
+    
+            df1 = enrich(df1)
+            df2 = enrich(df2)
+    
+            col_a, col_b = st.columns(2)
+    
+            with col_a:
+                st.subheader("📁 Chat 1")
+                st.metric("Mensajes totales", len(df1))
+                st.metric("Palabras totales", df1['num_words'].sum())
+                st.metric("Media de palabras por mensaje", round(df1['num_words'].mean(), 2))
+                st.metric("Sentimiento medio", round(df1['sentiment'].mean(), 2))
+                st.metric("Media de mensajes por día", round(df1.groupby('date').size().mean(), 2))
+    
+            with col_b:
+                st.subheader("📁 Chat 2")
+                st.metric("Mensajes totales", len(df2))
+                st.metric("Palabras totales", df2['num_words'].sum())
+                st.metric("Media de palabras por mensaje", round(df2['num_words'].mean(), 2))
+                st.metric("Sentimiento medio", round(df2['sentiment'].mean(), 2))
+                st.metric("Media de mensajes por día", round(df2.groupby('date').size().mean(), 2))
+    
+            st.subheader("📊 Evolución temporal (mensajes por día)")
+            df1_daily = df1.groupby('date').size().rename("Chat 1")
+            df2_daily = df2.groupby('date').size().rename("Chat 2")
+            combined = pd.concat([df1_daily, df2_daily], axis=1).fillna(0)
+            st.line_chart(combined)
+    
+            st.subheader("📉 Sentimiento por día")
+            sent_1 = df1.groupby('date')['sentiment'].mean().rename("Chat 1")
+            sent_2 = df2.groupby('date')['sentiment'].mean().rename("Chat 2")
+            st.line_chart(pd.concat([sent_1, sent_2], axis=1).fillna(0))
+    
+            st.subheader("📈 Palabras por mensaje (distribución)")
+            fig, ax = plt.subplots()
+            sns.histplot(df1['num_words'], label="Chat 1", color="blue", kde=True)
+            sns.histplot(df2['num_words'], label="Chat 2", color="green", kde=True)
+            ax.legend()
+            ax.set_xlabel("Palabras por mensaje")
+            st.pyplot(fig)
+    
+            st.subheader("🔁 Actividad por hora")
+            fig2, ax2 = plt.subplots()
+            sns.histplot(df1['hour'], bins=24, color="blue", label="Chat 1", kde=False, alpha=0.6)
+            sns.histplot(df2['hour'], bins=24, color="green", label="Chat 2", kde=False, alpha=0.6)
+            ax2.legend()
+            ax2.set_xlabel("Hora del día")
+            st.pyplot(fig2)
 
 else:
     st.info("Please upload a WhatsApp chat file to begin.")
