@@ -82,7 +82,7 @@ if uploaded_file:
     df['sentiment'] = df['message'].apply(get_sentiment)
 
     tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
-        "📊 Estadísticas", "📈 Actividad", "🗣️ Participación", "😂 Emojis y Wordcloud", "🔍 Avanzado", 
+        "📊 Estadísticas", "📈 Actividad", "🗣️ Participación", "😂 Emojis & Wordcloud", "🔍 Avanzado", 
         "🧠 NLP", "🧠 Chat Assistant", "🎮 Game", "📬 Comparador de Xats"
     ])
 
@@ -241,7 +241,7 @@ if uploaded_file:
         common_words = Counter(words).most_common(10)
         st.write(pd.DataFrame(common_words, columns=["Palabra", "Frecuencia"]))
 
-        st.header("😂 Emojis y Wordcloud")
+        st.header("😂 Emojis & Wordcloud")
         emoji_list = [c for c in all_words if c in emoji.EMOJI_DATA]
         emoji_freq = Counter(emoji_list).most_common(10)
         st.subheader("Emojis más usados")
