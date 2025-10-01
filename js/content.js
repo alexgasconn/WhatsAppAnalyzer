@@ -8,7 +8,7 @@ function generateContent(data) {
   // Basic word tokenization and counting
   const words = allText.toLowerCase()
     .split(/[.,!?;:"'(){}[\]\s\n\t]+/)
-    .filter(w => w.length > 2 && !/^\d+$/.test(w));
+    .filter(w => w.length > 3 && !/^\d+$/.test(w));  // Ajustado a >3 letras
 
   const counts = {};
   words.forEach(w => counts[w] = (counts[w] || 0) + 1);
@@ -22,15 +22,29 @@ function generateContent(data) {
     'if', 'or', 'up', 'down', 'no', 'yes', 'ok', 'okay', 'yeah', 'lol', 'haha', 'hmm',
     'oh', 'hi', 'hey', 'bro', 'sis', 'guy', 'guys', 'really', 'got', 'know', 'see',
     'think', 'send', 'also', 'some', 'any', 'here', 'there', 'who', 'how', 'why', 'where',
-    'went', 'said', 'going', 'come', 'much',
+    'went', 'said', 'going', 'come', 'much', 'omitted', 'media', 'link', 'image', 'video', 'quote', 'reply', 
     // Español
     'un', 'una', 'unas', 'unos', 'uno', 'sobre', 'todo', 'también', 'tras', 'otro', 'algún', 'alguno', 'alguna', 'algunos', 'algunas', 'ser', 'es', 'soy', 'eres', 'somos', 'sois', 'estoy', 'esta', 'estamos', 'estais', 'estan', 'como', 'en', 'para', 'atras', 'porque', 'por qué', 'estado', 'estaba', 'ante', 'antes', 'siendo', 'ambos', 'pero', 'por', 'poder', 'puede', 'puedo', 'podemos', 'podeis', 'pueden', 'fui', 'fue', 'fuimos', 'fueron', 'hacer', 'hago', 'hace', 'hacemos', 'haceis', 'hacen', 'cada', 'fin', 'incluso', 'primero', 'desde', 'conseguir', 'consigo', 'consigue', 'consigues', 'conseguimos', 'consiguen', 'ir', 'voy', 'va', 'vamos', 'vais', 'van', 'vaya', 'gueno', 'ha', 'tener', 'tengo', 'tiene', 'tenemos', 'teneis', 'tienen', 'el', 'la', 'lo', 'las', 'los', 'su', 'aqui', 'mio', 'tuyo', 'ellos', 'ellas', 'nos', 'nosotros', 'vosotros', 'vosotras', 'si', 'dentro', 'solo', 'solamente', 'saber', 'sabes', 'sabe', 'sabemos', 'sabeis', 'saben', 'ultimo', 'largo', 'bastante', 'haces', 'muchos', 'aquellos', 'aquellas', 'sus', 'entonces', 'tiempo', 'verdad', 'verdadero', 'verdadera', 'cierto', 'ciertos', 'cierta', 'ciertas', 'intentar', 'intento', 'intenta', 'intentas', 'intentamos', 'intentais', 'intentan', 'dos', 'bajo', 'arriba', 'encima', 'usar', 'uso', 'usas', 'usa', 'usamos', 'usais', 'usan', 'emplear', 'empleo', 'empleas', 'emplean', 'ampleamos', 'empleais', 'valor', 'muy', 'era', 'eras', 'eramos', 'eran', 'modo', 'bien', 'cual', 'cuando', 'donde', 'mientras', 'quien', 'con', 'entre', 'sin', 'trabajo', 'trabajar', 'trabajas', 'trabaja', 'trabajamos', 'trabajais', 'trabajan', 'podria', 'podrias', 'podriamos', 'podrian', 'podriais', 'yo', 'aquel',
     // Catalán
     'de', 'es', 'i', 'a', 'o', 'un', 'una', 'unes', 'uns', 'tot', 'també', 'altre', 'algun', 'alguna', 'alguns', 'algunes', 'ser', 'és', 'soc', 'ets', 'som', 'estic', 'està', 'estem', 'esteu', 'estan', 'com', 'en', 'per', 'perquè', 'per que', 'estat', 'estava', 'ans', 'abans', 'éssent', 'ambdós', 'però', 'poder', 'potser', 'puc', 'podem', 'podeu', 'poden', 'vaig', 'va', 'van', 'fer', 'faig', 'fa', 'fem', 'feu', 'fan', 'cada', 'fi', 'inclòs', 'primer', 'des de', 'conseguir', 'consegueixo', 'consigueix', 'consigues', 'conseguim', 'consigueixen', 'anar', 'haver', 'tenir', 'tinc', 'te', 'tenim', 'teniu', 'tene', 'el', 'la', 'les', 'els', 'seu', 'aquí', 'meu', 'teu', 'ells', 'elles', 'ens', 'nosaltres', 'vosaltres', 'si', 'dins', 'sols', 'solament', 'saber', 'saps', 'sap', 'sabem', 'sabeu', 'saben', 'últim', 'llarg', 'bastant', 'fas', 'molts', 'aquells', 'aquelles', 'seus', 'llavors', 'sota', 'dalt', 'ús', 'molt', 'era', 'eres', 'erem', 'eren', 'mode', 'bé', 'quant', 'quan', 'on', 'mentre', 'qui', 'amb', 'entre', 'sense', 'jo', 'aquell'
   ]);
 
-  const filteredWords = Object.entries(counts).filter(([word]) => !stopwords.has(word));
-  const topWords = filteredWords.sort((a, b) => b[1] - a[1]).slice(0, 50);
+  // Set de substrings a omitir (puedes expandirlo)
+  const omitSubstrings = new Set(['omitted', 'media', 'link', 'image', 'video', 'quote', 'reply']);
+
+  // Función auxiliar para verificar si la palabra contiene algún substring omitido
+  const containsOmitted = (word) => {
+    return Array.from(omitSubstrings).some(sub => word.toLowerCase().includes(sub.toLowerCase()));
+  };
+
+  const filteredWords = Object.entries(counts).filter(([word]) => 
+    !stopwords.has(word.toLowerCase()) &&  // Ignora mayúsculas/minúsculas en stopwords
+    word.length > 3 &&
+    word.length < 50 &&
+    !containsOmitted(word)
+  );
+
+  const topWords = filteredWords.sort((a, b) => b[1] - a[1]).slice(0, 30);
 
   // Pick a subset of chat to "recreate"
   const sampleChat = data.slice(0, 20) // first 20 messages (or random slice if you want)
