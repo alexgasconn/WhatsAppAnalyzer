@@ -8,11 +8,9 @@ function generateOverview(data) {
   const firstDate = new Date(Math.min(...dates));
   const lastDate = new Date(Math.max(...dates));
   const daysDiff = Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24));
-  
+
   const totalWords = data.reduce((sum, d) => sum + d.message.split(/\s+/).filter(Boolean).length, 0);
   const avgWordsPerMsg = (totalWords / data.length).toFixed(1);
-  
-  // const mediaCount = data.filter(d => d.message.includes('omitted') || d.message.includes('Media')).length; // Not used in HTML example
 
   const userCounts = {};
   data.forEach(d => userCounts[d.user] = (userCounts[d.user] || 0) + 1);
@@ -48,13 +46,20 @@ function generateOverview(data) {
 
     <div class="chart-container">
       <h3>📈 Messages Over Time</h3>
+      <label for="timeGranularity">Granularity: </label>
+      <select id="timeGranularity">
+        <option value="day">Daily</option>
+        <option value="week">Weekly</option>
+        <option value="month">Monthly</option>
+        <option value="year">Yearly</option>
+      </select>
       <canvas id="overviewTimeline"></canvas>
     </div>
   `;
 
   document.getElementById('overviewContent').innerHTML = html;
 
-  // Chart 1: Message Distribution (Doughnut)
+  // Chart 1: Message Distribution
   const ctx1 = document.getElementById('overviewPie').getContext('2d');
   chartInstances.push(new Chart(ctx1, {
     type: 'doughnut',
@@ -73,40 +78,77 @@ function generateOverview(data) {
     }
   }));
 
-  // Chart 2: Messages Over Time (Line)
-  const dailyData = {};
-  data.forEach(d => {
-    const day = d.datetime.toISOString().slice(0, 10);
-    dailyData[day] = (dailyData[day] || 0) + 1;
-  });
-  
+  // Function to aggregate messages
+  function aggregateMessages(granularity) {
+    const grouped = {};
+    data.forEach(d => {
+      const date = d.datetime;
+      let key;
+      switch (granularity) {
+        case "day":
+          key = date.toISOString().slice(0, 10);
+          break;
+        case "week":
+          const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+          const pastDays = Math.floor((date - firstDayOfYear) / (1000 * 60 * 60 * 24));
+          const week = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
+          key = `${date.getFullYear()}-W${week}`;
+          break;
+        case "month":
+          key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+          break;
+        case "year":
+          key = `${date.getFullYear()}`;
+          break;
+      }
+      grouped[key] = (grouped[key] || 0) + 1;
+    });
+    return grouped;
+  }
+
+  // Chart 2: Messages Over Time
   const ctx2 = document.getElementById('overviewTimeline').getContext('2d');
-  chartInstances.push(new Chart(ctx2, {
-    type: 'line',
-    data: {
-      labels: Object.keys(dailyData).sort(),
-      datasets: [{
-        label: 'Messages per Day',
-        data: Object.values(dailyData),
-        borderColor: '#667eea',
-        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-        fill: true,
-        tension: 0.4
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: false }
+  let timelineChart;
+
+  function renderTimeline(granularity) {
+    const grouped = aggregateMessages(granularity);
+    const labels = Object.keys(grouped).sort();
+    const values = labels.map(l => grouped[l]);
+
+    if (timelineChart) timelineChart.destroy();
+
+    timelineChart = new Chart(ctx2, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: `Messages per ${granularity}`,
+          data: values,
+          borderColor: '#667eea',
+          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+          fill: true,
+          tension: 0.4
+        }]
       },
-      scales: {
-        x: {
-          type: 'time',
-          time: {
-            unit: 'day'
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            type: 'category'
           }
         }
       }
-    }
-  }));
+    });
+  }
+
+  // Initial render (daily)
+  renderTimeline("day");
+
+  // Listener for dropdown
+  document.getElementById("timeGranularity").addEventListener("change", e => {
+    renderTimeline(e.target.value);
+  });
 }

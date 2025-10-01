@@ -47,7 +47,7 @@ function generateContent(data) {
   const topWords = filteredWords.sort((a, b) => b[1] - a[1]).slice(0, 75);
 
   // Pick a subset of chat to "recreate"
-  const sampleChat = data.slice(0, 20) // first 20 messages (or random slice if you want)
+  const sampleChat = data.slice(0, 200) // first 20 messages (or random slice if you want)
     .map(d => `<p><strong>${d.user}:</strong> ${d.message}</p>`)
     .join("");
 
