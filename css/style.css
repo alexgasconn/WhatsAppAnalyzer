@@ -492,3 +492,29 @@ canvas {
     text-align: left;
     padding-left: 10px;
 }
+
+.heatmap-grid {
+  display: grid;
+  gap: 2px;
+  margin-top: 10px;
+}
+.heatmap-label {
+  font-size: 12px;
+  font-weight: bold;
+  text-align: center;
+  padding: 2px;
+}
+.heatmap-cell {
+  text-align: center;
+  font-size: 11px;
+  padding: 4px;
+  border-radius: 4px;
+  color: #000;
+}
+.corner-cell {
+  background: transparent;
+}
+.user-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
