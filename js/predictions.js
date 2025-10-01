@@ -8,7 +8,7 @@ function generatePredictions(data) {
         return;
     }
 
-    // Convert to Date objects
+    // --- Convert to Date objects ---
     data.forEach(d => {
         if (!(d.datetime instanceof Date)) d.datetime = new Date(d.datetime);
     });
@@ -30,29 +30,44 @@ function generatePredictions(data) {
     const sortedWeeks = Object.keys(weeklyCounts).sort();
     const countsArray = sortedWeeks.map(w => weeklyCounts[w]);
 
-    // --- Forecast: Moving Average + Exponential Smoothing ---
-    function weeklyForecast(arr, weeks=12, alpha=0.3, maWindow=3) {
+    // --- Mini SARIMA Forecast ---
+    // Components: trend + seasonality + noise
+    function miniSARIMA(arr, weeks=12, seasonLength=4, alpha=0.3, beta=0.1) {
         if (!arr.length) return Array(weeks).fill(0);
-        const forecast = [];
+        let forecast = [];
         let series = [...arr];
-        let prev = arr[arr.length-1];
-        for (let i=0;i<weeks;i++) {
-            const windowVals = series.slice(-maWindow);
-            const ma = windowVals.reduce((a,b)=>a+b,0)/windowVals.length;
-            const nextVal = alpha*ma + (1-alpha)*prev;
+
+        // Estimate trend with simple diff
+        let trend = 0;
+        if (arr.length >= 2) trend = arr[arr.length-1] - arr[arr.length-2];
+
+        // Estimate seasonality using last seasonLength weeks
+        const seasonals = [];
+        for (let i=0;i<seasonLength;i++){
+            let sum=0, count=0;
+            for (let j=i;j<arr.length;j+=seasonLength){
+                sum+=arr[j]; count++;
+            }
+            seasonals.push(sum/count - arr.reduce((a,b)=>a+b,0)/arr.length);
+        }
+
+        let lastVal = arr[arr.length-1];
+        for (let i=0;i<weeks;i++){
+            const seasonal = seasonals[i % seasonLength] || 0;
+            const nextVal = lastVal + trend + seasonal;
             forecast.push(Math.round(nextVal));
-            prev = nextVal;
-            series.push(nextVal);
+            lastVal = lastVal* (1-alpha) + nextVal*alpha; // smoothing
+            trend = trend* (1-beta) + (nextVal - lastVal)*beta;
         }
         return forecast;
     }
 
     const forecastWeeks = 12;
-    const forecastValues = weeklyForecast(countsArray, forecastWeeks, 0.3, 3);
+    const forecastValues = miniSARIMA(countsArray, forecastWeeks, 4, 0.3, 0.1);
 
     // --- Generate week labels for forecast ---
     const lastWeekParts = sortedWeeks[sortedWeeks.length-1].split('-W');
-    const lastYear = parseInt(lastWeekParts[0]);
+    let lastYear = parseInt(lastWeekParts[0]);
     let lastWeekNo = parseInt(lastWeekParts[1]);
     const forecastLabels = [];
     for (let i=1;i<=forecastWeeks;i++){
@@ -82,13 +97,13 @@ function generatePredictions(data) {
             userWeeks[w] = (userWeeks[w]||0)+1;
         });
         const arr = Object.keys(userWeeks).sort().map(k=>userWeeks[k]);
-        const f = weeklyForecast(arr, forecastWeeks, 0.3, 3);
+        const f = miniSARIMA(arr, forecastWeeks, 4, 0.3, 0.1);
         userForecasts[u] = f;
     });
 
     // --- Render HTML ---
     const html = `
-        <h2>Chat Predictions & Insights (Weekly)</h2>
+        <h2>Chat Predictions & Insights (Weekly - Mini SARIMA)</h2>
         <div class="prediction-card">
             <h4>Most Talkative User</h4>
             <div>${topUser ? topUser[0] : 'N/A'} (${topUser ? topUser[1] : 0} msgs)</div>
