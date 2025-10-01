@@ -1,6 +1,6 @@
 let windowActivityChart = null;
 
-function generateWeeklyPredictions(data) {
+function generatePredictions(data) {
     const container = document.getElementById('predictions');
     if (!container) return;
     if (!data.length) {
