@@ -9,6 +9,8 @@
   <script src="https://cdn.jsdelivr.net/npm/sentiment@5.0.2/build/sentiment.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/emoji-dictionary@1.0.3/index.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.1.2/src/wordcloud2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@1.2.0"></script>
+
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -26,6 +28,17 @@
         </label>
       </div>
       <div class="file-name" id="fileName"></div>
+    </div>
+
+    <!-- Date Filter Section -->
+      <div class="date-filter-section" style="margin-top: 20px; display: none;" id="dateFilterSection">
+        <label for="startDate">From:</label>
+        <input type="date" id="startDate" class="filter-input">
+        <label for="endDate" style="margin-left: 15px;">To:</label>
+        <input type="date" id="endDate" class="filter-input">
+        <button id="applyDateFilter" class="upload-btn" style="margin-left: 15px; padding: 10px 20px; font-size: 0.9em;">Apply Filter</button>
+        <button id="clearDateFilter" class="upload-btn" style="background: #ccc; margin-left: 5px; padding: 10px 20px; font-size: 0.9em;">Clear Filter</button>
+      </div>
     </div>
 
     <div class="tabs">

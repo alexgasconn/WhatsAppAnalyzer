@@ -417,3 +417,78 @@ canvas {
     grid-template-columns: 1fr;
   }
 }
+/* Add these styles to your existing style.css */
+
+.date-filter-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap; /* Allow wrapping on small screens */
+  gap: 10px; /* Space between filter elements */
+}
+
+.date-filter-section label {
+  font-weight: 600;
+  color: #333;
+}
+
+.date-filter-section .filter-input {
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 0.9em;
+  transition: border-color 0.2s;
+}
+
+.date-filter-section .filter-input:focus {
+  outline: none;
+  border-color: #25D366;
+  box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.2);
+}
+
+/* Heatmap specific styles */
+.heatmap-grid {
+    display: grid;
+    grid-template-columns: auto repeat(24, 1fr); /* 1 for labels, 24 for hours */
+    grid-template-rows: auto repeat(7, 1fr); /* 1 for labels, 7 for days */
+    gap: 1px;
+    border: 1px solid #eee;
+    background-color: #eee;
+    max-width: fit-content;
+    margin: 20px auto;
+}
+
+.heatmap-cell, .heatmap-label {
+    padding: 5px;
+    text-align: center;
+    font-size: 0.7em;
+    color: #555;
+    background-color: white; /* Default background for labels */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.heatmap-cell {
+    background-color: #f0f0f0; /* Default cell background */
+    transition: background-color 0.3s ease;
+}
+
+/* Styles for the corner cell (empty) */
+.heatmap-grid .corner-cell {
+    background-color: transparent;
+}
+
+/* Hour labels at the top */
+.heatmap-grid .hour-label {
+    font-weight: bold;
+    background-color: #e9ecef;
+}
+
+/* Day labels on the left */
+.heatmap-grid .day-label {
+    font-weight: bold;
+    background-color: #e9ecef;
+    text-align: left;
+    padding-left: 10px;
+}
