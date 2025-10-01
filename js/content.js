@@ -30,7 +30,7 @@ function generateContent(data) {
   ]);
 
   // Set de substrings a omitir (puedes expandirlo)
-  const omitSubstrings = new Set(['omitted', 'media', 'link', 'image', 'video', 'quote', 'reply']);
+  const omitSubstrings = new Set(['omitted', 'media', 'link', 'image', 'video', 'quote', 'reply', 's=', '//www', 'www', 'https://', 'http://', 'message', 'edited']);
 
   // Función auxiliar para verificar si la palabra contiene algún substring omitido
   const containsOmitted = (word) => {
