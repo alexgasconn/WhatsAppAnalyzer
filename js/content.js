@@ -44,7 +44,7 @@ function generateContent(data) {
     !containsOmitted(word)
   );
 
-  const topWords = filteredWords.sort((a, b) => b[1] - a[1]).slice(0, 30);
+  const topWords = filteredWords.sort((a, b) => b[1] - a[1]).slice(0, 50);
 
   // Pick a subset of chat to "recreate"
   const sampleChat = data.slice(0, 20) // first 20 messages (or random slice if you want)

@@ -1,4 +1,4 @@
-function generateRelationships(data, maxGap = 5, maxMinutes = 3) {
+function generateRelationships(data, maxGap = 5, maxMinutes = 1) {
   const pairs = {};
   const matrix = {};
   const users = [...new Set(data.map(d => d.user))];
