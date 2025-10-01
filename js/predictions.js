@@ -1,186 +1,183 @@
-let windowActivityChart = null;
+let windowActivityChart = null; // store chart globally
 
 function generatePredictions(data) {
     const container = document.getElementById('predictions');
     if (!container) return;
+
     if (!data.length) {
         container.innerHTML = `<p>No data to predict.</p>`;
         return;
     }
 
+    // Convert dates to Date objects
     data.forEach(d => {
         if (!(d.datetime instanceof Date)) d.datetime = new Date(d.datetime);
     });
 
-    function getWeekKey(date) {
-        const d = new Date(date);
-        const firstDay = new Date(d.getFullYear(),0,1);
-        const weekNo = Math.ceil((((d - firstDay)/86400000)+firstDay.getDay()+1)/7);
-        return `${d.getFullYear()}-W${weekNo}`;
-    }
-
-    // --- Aggregate weekly counts ---
-    const weeklyCounts = {};
+    // --- Aggregate daily counts ---
+    const dailyCounts = {};
     data.forEach(d => {
-        const week = getWeekKey(d.datetime);
-        weeklyCounts[week] = (weeklyCounts[week]||0)+1;
+        const day = d.datetime.toISOString().slice(0,10);
+        dailyCounts[day] = (dailyCounts[day] || 0) + 1;
     });
 
-    const sortedWeeks = Object.keys(weeklyCounts).sort();
-    const countsArray = sortedWeeks.map(w => weeklyCounts[w]);
+    const sortedDays = Object.keys(dailyCounts).sort();
+    const countsArray = sortedDays.map(d => dailyCounts[d]);
 
-    // --- Detect seasonality ---
-    function detectSeasonLength(arr) {
-        if (arr.length < 8) return 1;
-        let bestLen = 1, bestVar = Infinity;
-        for (let len=1; len<=Math.min(12, Math.floor(arr.length/2)); len++){
-            let seasonalMeans = [];
-            for (let i=0;i<len;i++){
-                let vals=[];
-                for (let j=i;j<arr.length;j+=len) vals.push(arr[j]);
-                seasonalMeans.push(vals.reduce((a,b)=>a+b,0)/vals.length);
-            }
-            let varSeason = seasonalMeans.reduce((a,b)=>a+b,0)/seasonalMeans.length;
-            if (varSeason<bestVar){ bestVar=varSeason; bestLen=len;}
-        }
-        return bestLen;
+    // --- Detect season length (weekly seasonality if enough data) ---
+    function detectSeasonLength(arr){
+        return arr.length >=14 ? 7 : 1; // if >=2 weeks data, season = 7 days
     }
     const seasonLength = detectSeasonLength(countsArray);
 
-    // --- Adaptive smoothing SARIMA ---
-    function adaptiveSARIMA(arr, weeks=12, seasonLength=seasonLength) {
+    // --- Adaptive SARIMA-like forecast ---
+    function adaptiveSARIMA(arr, weeks=12, seasonLengthParam=1) {
+        const seasonLen = seasonLengthParam;
         if (!arr.length) return Array(weeks).fill(0);
 
         let forecast = [];
         let lastVal = arr[arr.length-1];
-        let trend = arr.length >=2 ? (arr.slice(-seasonLength).reduce((a,b)=>a+b,0) - arr.slice(-2*seasonLength,-seasonLength).reduce((a,b)=>a+b,0))/seasonLength : 0;
+        let trend = arr.length >=2 ? (arr.slice(-seasonLen).reduce((a,b)=>a+b,0) - arr.slice(-2*seasonLen,-seasonLen).reduce((a,b)=>a+b,0))/seasonLen : 0;
 
-        // Compute seasonality pattern
         let seasonals = [];
-        for (let i=0;i<seasonLength;i++){
+        for (let i=0;i<seasonLen;i++){
             let vals=[];
-            for (let j=i;j<arr.length;j+=seasonLength) vals.push(arr[j]);
+            for (let j=i;j<arr.length;j+=seasonLen) vals.push(arr[j]);
             seasonals.push(vals.reduce((a,b)=>a+b,0)/vals.length - arr.reduce((a,b)=>a+b,0)/arr.length);
         }
 
         for (let i=0;i<weeks;i++){
-            const seasonal = seasonals[i%seasonLength] || 0;
-
-            // Adaptive alpha: larger if last week deviates strongly
+            const seasonal = seasonals[i%seasonLen] || 0;
             const deviation = arr.length>0 ? Math.abs(arr[arr.length-1]-arr.reduce((a,b)=>a+b,0)/arr.length) : 0;
             const alpha = Math.min(0.9, 0.3 + 0.7*Math.min(1,deviation/Math.max(1,arr.reduce((a,b)=>a+b,0)/arr.length)));
-
             const nextVal = lastVal + trend + seasonal;
             const smoothed = alpha*nextVal + (1-alpha)*lastVal;
-
             forecast.push(Math.round(smoothed));
-
-            // Update lastVal and trend dynamically
             trend = 0.7*trend + 0.3*(smoothed - lastVal);
             lastVal = smoothed;
         }
         return forecast;
     }
 
-    const forecastWeeks = 12;
-    const forecastValues = adaptiveSARIMA(countsArray, forecastWeeks);
-
-    // --- Forecast week labels ---
-    const lastWeekParts = sortedWeeks[sortedWeeks.length-1].split('-W');
-    let lastYear = parseInt(lastWeekParts[0]);
-    let lastWeekNo = parseInt(lastWeekParts[1]);
-    const forecastLabels = [];
-    for (let i=1;i<=forecastWeeks;i++){
-        lastWeekNo++;
-        let year = lastYear;
-        let week = lastWeekNo;
-        if (week>52){ week-=52; year+=1;}
-        forecastLabels.push(`${year}-W${week}`);
+    // --- Weekly aggregation ---
+    function aggregateWeekly(arr) {
+        const weeks = [];
+        for (let i=0;i<arr.length;i+=7){
+            weeks.push(arr.slice(i,i+7).reduce((a,b)=>a+b,0));
+        }
+        return weeks;
     }
 
-    const chartLabels = [...sortedWeeks,...forecastLabels];
-    const chartDataActual = [...countsArray,...Array(forecastWeeks).fill(null)];
-    const chartDataForecast = [...Array(sortedWeeks.length).fill(null),...forecastValues];
+    const dailyWeeks = aggregateWeekly(countsArray);
+    const forecastWeeks = 12; // next 12 weeks
+    const forecastValues = adaptiveSARIMA(dailyWeeks, forecastWeeks, seasonLength);
 
-    // --- Top user + per-user forecasts ---
+    // --- Generate chart labels (weekly) ---
+    const lastDate = new Date(sortedDays[sortedDays.length-1]);
+    const chartLabels = [];
+    for (let i=0;i<dailyWeeks.length + forecastWeeks;i++){
+        const d = new Date(lastDate);
+        d.setDate(d.getDate() + i*7);
+        chartLabels.push(d.toISOString().slice(0,10));
+    }
+
+    const chartDataActual = [...dailyWeeks, ...Array(forecastWeeks).fill(null)];
+    const chartDataForecast = [...Array(dailyWeeks.length).fill(null), ...forecastValues];
+
+    // --- Compute group + top user ---
     const userCounts = {};
-    data.forEach(d=>userCounts[d.user]=(userCounts[d.user]||0)+1);
+    data.forEach(d => userCounts[d.user] = (userCounts[d.user] || 0) + 1);
     const topUser = Object.entries(userCounts).sort((a,b)=>b[1]-a[1])[0];
 
-    const users=[...new Set(data.map(d=>d.user))];
-    const userForecasts={};
+    // --- Compute group forecast sums ---
+    const groupForecast7  = forecastValues.slice(0,1)[0] || 0; // first week
+    const groupForecast30 = forecastValues.slice(0,4).reduce((a,b)=>a+b,0); // ~1 month
+    const groupForecast90 = forecastValues.slice(0,12).reduce((a,b)=>a+b,0); // 3 months
+
+    // --- Compute per-user forecasts ---
+    const users = [...new Set(data.map(d=>d.user))];
+    const userForecasts = {};
     users.forEach(u=>{
-        const userWeeks={};
+        const userDailyCounts = {};
         data.filter(d=>d.user===u).forEach(d=>{
-            const w=getWeekKey(d.datetime);
-            userWeeks[w]=(userWeeks[w]||0)+1;
+            const day = d.datetime.toISOString().slice(0,10);
+            userDailyCounts[day] = (userDailyCounts[day]||0)+1;
         });
-        const arr=Object.keys(userWeeks).sort().map(k=>userWeeks[k]);
-        const f=adaptiveSARIMA(arr, forecastWeeks);
-        userForecasts[u]=f;
+        const arr = aggregateWeekly(Object.keys(userDailyCounts).sort().map(k=>userDailyCounts[k]));
+        const f = adaptiveSARIMA(arr, 12, seasonLength);
+        userForecasts[u] = {
+            '1': f.slice(0,1).reduce((a,b)=>a+b,0),
+            '4': f.slice(0,4).reduce((a,b)=>a+b,0),
+            '12': f.slice(0,12).reduce((a,b)=>a+b,0)
+        };
     });
 
     // --- Render HTML ---
-    container.innerHTML = `
-        <h2>Chat Predictions & Insights (Weekly - Adaptive SARIMA)</h2>
+    const html = `
+        <h2>Chat Predictions & Insights</h2>
         <div class="prediction-card">
             <h4>Most Talkative User</h4>
             <div>${topUser ? topUser[0] : 'N/A'} (${topUser ? topUser[1] : 0} msgs)</div>
         </div>
-        <h3>🔮 Weekly Forecast (Next ${forecastWeeks} Weeks)</h3>
+        <h3>🔮 Future Message Predictions (Weekly)</h3>
         <div class="relationship-grid">
             <div class="relationship-card">
-                <h4>Group Forecast</h4>
-                ${forecastValues.map((v,i)=>`<div>${forecastLabels[i]}: ${v}</div>`).join('')}
+                <h4>Group Predictions</h4>
+                <div>Next Week: ${groupForecast7}</div>
+                <div>Next 4 Weeks: ${groupForecast30}</div>
+                <div>Next 12 Weeks: ${groupForecast90}</div>
             </div>
             ${users.map(u=>`
                 <div class="relationship-card">
-                    <h4>${u}'s Forecast</h4>
-                    ${userForecasts[u].map((v,i)=>`<div>${forecastLabels[i]}: ${v}</div>`).join('')}
+                    <h4>${u}'s Predictions</h4>
+                    <div>Next Week: ${userForecasts[u]['1']}</div>
+                    <div>Next 4 Weeks: ${userForecasts[u]['4']}</div>
+                    <div>Next 12 Weeks: ${userForecasts[u]['12']}</div>
                 </div>
             `).join('')}
         </div>
         <div class="chart-container">
-            <h3>📊 Weekly Messages: Actual vs Predicted (Adaptive)</h3>
-            <canvas id="monthlyActivityChart" width="800" height="400"></canvas>
+            <h3>📊 Weekly Messages: Actual vs Predicted</h3>
+            <canvas id="monthlyActivityChart" width="600" height="300"></canvas>
         </div>
     `;
+    container.innerHTML = html;
 
     // --- Render Chart ---
-    const canvas=document.getElementById('monthlyActivityChart');
-    if(canvas){
-        const ctx=canvas.getContext('2d');
-        if(windowActivityChart) windowActivityChart.destroy();
-        windowActivityChart=new Chart(ctx,{
-            type:'line',
-            data:{
-                labels:chartLabels,
-                datasets:[
+    const canvas = document.getElementById('monthlyActivityChart');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (windowActivityChart) windowActivityChart.destroy();
+        windowActivityChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartLabels,
+                datasets: [
                     {
-                        label:'Actual Messages',
-                        data:chartDataActual,
-                        borderColor:'#4facfe',
-                        backgroundColor:'rgba(79,172,254,0.1)',
-                        fill:true,
-                        tension:0.3
+                        label: 'Actual Messages',
+                        data: chartDataActual,
+                        borderColor: '#4facfe',
+                        backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                        fill: true,
+                        tension: 0.3
                     },
                     {
-                        label:'Predicted Messages',
-                        data:chartDataForecast,
-                        borderColor:'#f093fb',
-                        backgroundColor:'rgba(240,147,251,0.1)',
-                        borderDash:[5,5],
-                        fill:true,
-                        tension:0.3
+                        label: 'Predicted Messages',
+                        data: chartDataForecast,
+                        borderColor: '#f093fb',
+                        backgroundColor: 'rgba(240, 147, 251, 0.1)',
+                        borderDash: [5,5],
+                        fill: true,
+                        tension: 0.3
                     }
                 ]
             },
-            options:{
-                responsive:true,
-                plugins:{legend:{display:true}},
-                scales:{
-                    x:{title:{display:true,text:'Week'}},
-                    y:{title:{display:true,text:'Messages'},beginAtZero:true}
+            options: {
+                responsive: true,
+                plugins: { legend: { display: true } },
+                scales: {
+                    x: { title: { display: true, text: 'Week Starting' } },
+                    y: { title: { display: true, text: 'Messages' }, beginAtZero: true }
                 }
             }
         });
