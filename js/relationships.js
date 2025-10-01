@@ -3,6 +3,8 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
   const matrix = {};
   const users = [...new Set(data.map(d => d.user))];
 
+  console.log("Usuarios detectados:", users);
+
   // init matrix
   users.forEach(u1 => {
     matrix[u1] = {};
@@ -19,16 +21,23 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
 
       if (sender !== receiver) {
         const diffMinutes = (t2 - t1) / 60000;
+
         if (diffMinutes <= maxMinutes) {
-          // count both pair and matrix
           const key = [sender, receiver].sort().join(' & ');
           pairs[key] = (pairs[key] || 0) + 1;
           matrix[receiver][sender] += 1;
-          // 🔴 ahora NO hay break, se cuentan todos los replies dentro del rango
+
+          console.log(`Reply detectado: ${receiver} → ${sender} | diff=${diffMinutes.toFixed(2)} min`);
+        } else {
+          // demasiado tiempo
+          console.log(`Saltado: ${receiver} → ${sender}, diff=${diffMinutes.toFixed(2)} min > ${maxMinutes}`);
         }
       }
     }
   }
+
+  console.log("Pairs acumulados:", pairs);
+  console.log("Matriz acumulada:", matrix);
 
   // render top pairs
   const sortedPairs = Object.entries(pairs).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -62,6 +71,8 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
     });
   });
 
+  console.log("Datos heatmap:", matrixData);
+
   new Chart(ctx, {
     type: 'matrix',
     data: {
@@ -71,8 +82,8 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
         backgroundColor(ctx) {
           const value = ctx.dataset.data[ctx.dataIndex].v;
           if (value === 0) return 'rgba(0,0,0,0.05)';
-          const alpha = Math.min(1, value / 50); // escala ajustable
-          return `rgba(0, 200, 0, ${alpha})`; // verde
+          const alpha = Math.min(1, value / 50);
+          return `rgba(0, 200, 0, ${alpha})`;
         },
         width: ({chart}) => (chart.chartArea.width / users.length) - 2,
         height: ({chart}) => (chart.chartArea.height / users.length) - 2,
