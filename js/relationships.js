@@ -13,33 +13,27 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
 
   for (let i = 0; i < data.length; i++) {
     const sender = data[i].user;
-    const t1 = new Date(data[i].timestamp);
-
-    if (isNaN(t1)) {
+    const t1 = parseTimestamp(data[i].timestamp);
+    if (!t1) {
       console.warn("Timestamp inválido:", data[i].timestamp);
       continue;
     }
 
     for (let j = i + 1; j <= i + maxGap && j < data.length; j++) {
       const receiver = data[j].user;
-      const t2 = new Date(data[j].timestamp);
-
-      if (isNaN(t2)) {
+      const t2 = parseTimestamp(data[j].timestamp);
+      if (!t2) {
         console.warn("Timestamp inválido:", data[j].timestamp);
         continue;
       }
 
       if (sender !== receiver) {
         const diffMinutes = (t2 - t1) / 60000;
-
         if (diffMinutes <= maxMinutes) {
           const key = [sender, receiver].sort().join(' & ');
           pairs[key] = (pairs[key] || 0) + 1;
           matrix[receiver][sender] += 1;
-
           console.log(`Reply detectado: ${receiver} → ${sender} | diff=${diffMinutes.toFixed(2)} min`);
-        } else {
-          console.log(`Saltado: ${receiver} → ${sender}, diff=${diffMinutes.toFixed(2)} min > ${maxMinutes}`);
         }
       }
     }
@@ -48,7 +42,7 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
   console.log("Pairs acumulados:", pairs);
   console.log("Matriz acumulada:", matrix);
 
-  // render top pairs
+  // Render top pairs
   const sortedPairs = Object.entries(pairs).sort((a, b) => b[1] - a[1]).slice(0, 5);
   let html = '<h2>Top Conversational Pairs</h2><div class="relationship-grid">';
   if (sortedPairs.length === 0) {
@@ -67,20 +61,19 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
   }
   html += '</div>';
 
-  // heatmap
+  // Heatmap
   html += '<h2>Reply Heatmap</h2><canvas id="replyHeatmap"></canvas>';
   document.getElementById('relationships').innerHTML = html;
 
-  // chart.js matrix
-  const ctx = document.getElementById('replyHeatmap').getContext('2d');
+  const ctx = document.getElementById('replyHeatmap')?.getContext('2d');
+  if (!ctx) return; // seguridad
+
   const matrixData = [];
   users.forEach((u1, row) => {
     users.forEach((u2, col) => {
       matrixData.push({x: col, y: row, v: matrix[u1][u2]});
     });
   });
-
-  console.log("Datos heatmap:", matrixData);
 
   new Chart(ctx, {
     type: 'matrix',
@@ -94,8 +87,8 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
           const alpha = Math.min(1, value / 50);
           return `rgba(0, 200, 0, ${alpha})`;
         },
-        width: ({chart}) => (chart.chartArea.width / users.length) - 2,
-        height: ({chart}) => (chart.chartArea.height / users.length) - 2,
+        width: ({chart}) => chart.chartArea ? (chart.chartArea.width / users.length) - 2 : 10,
+        height: ({chart}) => chart.chartArea ? (chart.chartArea.height / users.length) - 2 : 10,
       }]
     },
     options: {
@@ -116,4 +109,21 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
       }
     }
   });
+}
+
+function parseTimestamp(ts) {
+  if (!ts) return null;
+
+  // Intentamos ISO primero
+  let t = new Date(ts);
+  if (!isNaN(t)) return t;
+
+  // Intento estilo WhatsApp "dd/MM/yy, HH:mm"
+  const match = ts.match(/(\d{2})\/(\d{2})\/(\d{2}), (\d{2}):(\d{2})/);
+  if (match) {
+    const [, dd, mm, yy, HH, MM] = match;
+    return new Date(`20${yy}-${mm}-${dd}T${HH}:${MM}:00`);
+  }
+
+  return null; // no se pudo parsear
 }
