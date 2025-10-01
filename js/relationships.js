@@ -13,17 +13,17 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
 
   for (let i = 0; i < data.length; i++) {
     const sender = data[i].user;
-    const t1 = parseTimestamp(data[i].timestamp);
+    const t1 = parseTimestamp(data[i].timestamp ?? data[i].datetime);
     if (!t1) {
-      console.warn("Timestamp inválido:", data[i].timestamp);
+      console.warn("Timestamp inválido:", data[i].timestamp ?? data[i].datetime);
       continue;
     }
 
     for (let j = i + 1; j <= i + maxGap && j < data.length; j++) {
       const receiver = data[j].user;
-      const t2 = parseTimestamp(data[j].timestamp);
+      const t2 = parseTimestamp(data[j].timestamp ?? data[j].datetime);
       if (!t2) {
-        console.warn("Timestamp inválido:", data[j].timestamp);
+        console.warn("Timestamp inválido:", data[j].timestamp ?? data[j].datetime);
         continue;
       }
 
@@ -84,7 +84,7 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
         backgroundColor(ctx) {
           const value = ctx.dataset.data[ctx.dataIndex].v;
           if (value === 0) return 'rgba(0,0,0,0.05)';
-          const alpha = Math.min(1, value / 50);
+          const alpha = Math.min(1, value / 50); // ajustar escala si es un chat grande
           return `rgba(0, 200, 0, ${alpha})`;
         },
         width: ({chart}) => chart.chartArea ? (chart.chartArea.width / users.length) - 2 : 10,
@@ -114,11 +114,17 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
 function parseTimestamp(ts) {
   if (!ts) return null;
 
-  // Intentamos ISO primero
+  // si ya es Date válido
+  if (ts instanceof Date && !isNaN(ts)) return ts;
+
+  // si es número de ms
+  if (typeof ts === "number") return new Date(ts);
+
+  // Intentamos ISO directo
   let t = new Date(ts);
   if (!isNaN(t)) return t;
 
-  // Intento estilo WhatsApp "dd/MM/yy, HH:mm"
+  // WhatsApp style dd/MM/yy, HH:mm
   const match = ts.match(/(\d{2})\/(\d{2})\/(\d{2}), (\d{2}):(\d{2})/);
   if (match) {
     const [, dd, mm, yy, HH, MM] = match;
