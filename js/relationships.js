@@ -58,76 +58,13 @@ function generateRelationships(data, maxGap = 5, maxMinutes = 3) {
   }
   html += '</div>';
 
-  // 4. Heatmap con matriz acumulada
-  html += '<h2>Reply Heatmap</h2><canvas id="replyHeatmap"></canvas>';
+  // 4. Heatmap con matriz acumulada (HTML/CSS grid)
+  html += '<h2>Reply Heatmap</h2><div id="relationshipHeatmap" class="heatmap-grid"></div>';
   document.getElementById('relationships').innerHTML = html;
 
-  const ctx = document.getElementById('replyHeatmap')?.getContext('2d');
-  if (!ctx) return;
+  renderUserHeatmap(matrix);
 
-  const matrixData = [];
-  users.forEach((sender, row) => {
-    users.forEach((receiver, col) => {
-      const value = matrix[sender][receiver] ?? 0;
-      matrixData.push({
-        x: col,   // columna = receiver
-        y: row,   // fila = sender
-        v: value
-      });
-    });
-  });
-
-  new Chart(ctx, {
-    type: 'matrix',
-    data: {
-      datasets: [{
-        label: 'Replies',
-        data: matrixData,
-        backgroundColor(ctx) {
-          const v = ctx.dataset.data[ctx.dataIndex].v;
-          if (v === 0) return 'rgba(0,0,0,0.05)';
-          const alpha = Math.min(1, v / 1000); // ajusta divisor según tamaño
-          return `rgba(0,200,0,${alpha})`;
-        },
-        width: ({ chart }) =>
-          chart.chartArea ? (chart.chartArea.width / users.length) - 2 : 10,
-        height: ({ chart }) =>
-          chart.chartArea ? (chart.chartArea.height / users.length) - 2 : 10,
-      }]
-    },
-    options: {
-      aspectRatio: 1,
-      scales: {
-        x: {
-          type: 'category',
-          labels: users,
-          position: 'top',
-          grid: { display: false },
-          title: { display: true, text: 'Receiver' }
-        },
-        y: {
-          type: 'category',
-          labels: users,
-          grid: { display: false },
-          title: { display: true, text: 'Sender' }
-        }
-      },
-      plugins: {
-        tooltip: {
-          callbacks: {
-            title: () => '',
-            label: ctx => {
-              const { x, y, v } = ctx.raw;
-              return `${users[y]} → ${users[x]}: ${v} replies`;
-            }
-          }
-        },
-        legend: { display: false }
-      }
-    }
-  });
-
-
+  // --- Helpers ---
   function parseTimestamp(ts) {
     if (!ts) return null;
     if (ts instanceof Date && !isNaN(ts)) return ts;
@@ -142,5 +79,53 @@ function generateRelationships(data, maxGap = 5, maxMinutes = 3) {
       return new Date(`20${yy}-${mm}-${dd}T${HH}:${MM}:00`);
     }
     return null;
+  }
+
+  function renderUserHeatmap(matrix) {
+    const users = Object.keys(matrix);
+    const gridContainer = document.getElementById('relationshipHeatmap');
+    gridContainer.innerHTML = '';
+
+    // columnas = 1 corner + N usuarios
+    gridContainer.style.gridTemplateColumns = `repeat(${users.length + 1}, minmax(60px, 1fr))`;
+
+    // esquina vacía
+    gridContainer.innerHTML += `<div class="heatmap-label corner-cell"></div>`;
+
+    // etiquetas columnas (usuarios receptores)
+    users.forEach(u => {
+      gridContainer.innerHTML += `<div class="heatmap-label user-label">${u}</div>`;
+    });
+
+    // filas
+    users.forEach(rowUser => {
+      // etiqueta fila
+      gridContainer.innerHTML += `<div class="heatmap-label">${rowUser}</div>`;
+
+      users.forEach(colUser => {
+        const value = matrix[rowUser][colUser] || 0;
+        const maxVal = getMaxValue(matrix);
+        const intensity = maxVal > 0 ? value / maxVal : 0;
+        const lightness = 95 - (intensity * 55);
+        const backgroundColor = `hsl(200, 70%, ${lightness}%)`;
+
+        gridContainer.innerHTML += `
+          <div class="heatmap-cell" 
+               style="background-color:${backgroundColor}" 
+               title="${rowUser} → ${colUser}: ${value}">
+            ${value > 0 ? value : ''}
+          </div>`;
+      });
+    });
+  }
+
+  function getMaxValue(matrix) {
+    let max = 0;
+    for (let u1 in matrix) {
+      for (let u2 in matrix[u1]) {
+        if (matrix[u1][u2] > max) max = matrix[u1][u2];
+      }
+    }
+    return max;
   }
 }
