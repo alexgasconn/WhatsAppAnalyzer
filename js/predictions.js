@@ -1,158 +1,132 @@
-/**
- * Generates and displays simple predictions based on chat data.
- * @param {Array} data The parsed chat data.
- */
 function generatePredictions(data) {
-  const userCounts = {};
-  data.forEach(d => userCounts[d.user] = (userCounts[d.user] || 0) + 1);
-  
-  // Find the user with the most messages
-  const topUser = Object.entries(userCounts).sort((a,b)=>b[1]-a[1])[0];
+    if (!data.length) {
+        document.getElementById('predictions').innerHTML = `<p>No data to predict.</p>`;
+        return;
+    }
 
-  // Calculate average messages per day for the group
-  const dates = data.map(d => d.datetime);
-  const minDate = new Date(Math.min(...dates));
-  const maxDate = new Date(Math.max(...dates));
-  // Ensure dates are valid for calculation, especially with filtered data
-  const totalDurationMs = maxDate.getTime() - minDate.getTime();
-  let totalDurationDays = totalDurationMs / (1000 * 60 * 60 * 24);
-  if (totalDurationDays < 1 && data.length > 0) { // If all messages on same day, count as 1 day duration
-      totalDurationDays = 1;
-  } else if (data.length === 0) {
-      totalDurationDays = 0; // Avoid division by zero
-  }
-  
-  const avgGroupMessagesPerDay = totalDurationDays > 0 ? (data.length / totalDurationDays) : 0;
+    // Convert dates to Date objects
+    data.forEach(d => { if (!(d.datetime instanceof Date)) d.datetime = new Date(d.datetime); });
 
-  // Calculate average messages per day for each user
-  const userDailyAverages = {};
-  Object.keys(userCounts).forEach(user => {
-      const userMessages = data.filter(d => d.user === user);
-      // Recalculate duration for user's activity range
-      const userDates = userMessages.map(d => d.datetime);
-      const userMinDate = userDates.length > 0 ? new Date(Math.min(...userDates)) : null;
-      const userMaxDate = userDates.length > 0 ? new Date(Math.max(...userDates)) : null;
+    // --- Aggregate daily counts ---
+    const dailyCounts = {};
+    data.forEach(d => {
+        const day = d.datetime.toISOString().slice(0,10);
+        dailyCounts[day] = (dailyCounts[day] || 0) + 1;
+    });
 
-      let userDurationDays = 0;
-      if (userMinDate && userMaxDate) {
-          userDurationDays = (userMaxDate.getTime() - userMinDate.getTime()) / (1000 * 60 * 60 * 24);
-      }
-      if (userDurationDays < 1 && userMessages.length > 0) {
-          userDurationDays = 1;
-      }
-      
-      userDailyAverages[user] = userDurationDays > 0 ? (userMessages.length / userDurationDays) : 0;
-  });
+    const sortedDays = Object.keys(dailyCounts).sort();
+    const countsArray = sortedDays.map(d => dailyCounts[d]);
 
+    // --- Mini AR(1) forecast ---
+    function arForecast(arr, factor=0.5, days=7) {
+        if (!arr.length) return Array(days).fill(0);
+        const last = arr[arr.length-1];
+        const avg = arr.reduce((a,b)=>a+b,0)/arr.length;
+        return Array(days).fill().map((_,i)=>Math.round(factor*last + (1-factor)*avg));
+    }
 
-  const html = `
-    <h2>Chat Predictions & Insights</h2>
-    <div class="prediction-card">
-      <h4>Most Talkative User Prediction</h4>
-      <div class="prediction-value">${topUser ? topUser[0] : 'N/A'}</div>
-      <div class="prediction-details">with ${topUser ? topUser[1].toLocaleString() : 0} messages recorded.</div>
-    </div>
-    <div class="prediction-card">
-      <h4>Overall Average Daily Activity</h4>
-      <div class="prediction-value">${avgGroupMessagesPerDay.toFixed(1)} msgs/day</div>
-      <div class="prediction-details">based on current filtered conversation.</div>
-    </div>
+    // --- Generate forecast for next 30 days ---
+    const forecastDays = 30;
+    const forecastValues = arForecast(countsArray, 0.5, forecastDays);
+    const lastDate = new Date(sortedDays[sortedDays.length-1]);
+    const forecastDates = Array.from({length:forecastDays},(_,i)=>{
+        const d = new Date(lastDate);
+        d.setDate(d.getDate() + i + 1);
+        return d.toISOString().slice(0,10);
+    });
 
-    <h3>🔮 Future Message Predictions (Based on Average Daily Activity)</h3>
-    <div class="relationship-grid">
-        <div class="relationship-card">
-            <h4>Group Predictions</h4>
-            <div class="relationship-item">
-                <span class="relationship-label">Next 7 Days</span>
-                <span class="relationship-value">${Math.round(avgGroupMessagesPerDay * 7).toLocaleString()} msgs</span>
-            </div>
-            <div class="relationship-item">
-                <span class="relationship-label">Next 30 Days</span>
-                <span class="relationship-value">${Math.round(avgGroupMessagesPerDay * 30).toLocaleString()} msgs</span>
-            </div>
-            <div class="relationship-item">
-                <span class="relationship-label">Next 90 Days</span>
-                <span class="relationship-value">${Math.round(avgGroupMessagesPerDay * 90).toLocaleString()} msgs</span>
-            </div>
-        </div>
+    // --- Prepare chart data ---
+    const chartLabels = [...sortedDays, ...forecastDates];
+    const chartDataActual = [...countsArray, ...Array(forecastDays).fill(null)];
+    const chartDataForecast = [...Array(sortedDays.length).fill(null), ...forecastValues];
 
-        ${Object.keys(userDailyAverages).length > 0 ? 
-            Object.keys(userDailyAverages).map(user => `
-                <div class="relationship-card">
-                    <h4>${user}'s Predictions</h4>
-                    <div class="relationship-item">
-                        <span class="relationship-label">Next 7 Days</span>
-                        <span class="relationship-value">${Math.round(userDailyAverages[user] * 7).toLocaleString()} msgs</span>
-                    </div>
-                    <div class="relationship-item">
-                        <span class="relationship-label">Next 30 Days</span>
-                        <span class="relationship-value">${Math.round(userDailyAverages[user] * 30).toLocaleString()} msgs</span>
-                    </div>
-                    <div class="relationship-item">
-                        <span class="relationship-label">Next 90 Days</span>
-                        <span class="relationship-value">${Math.round(userDailyAverages[user] * 90).toLocaleString()} msgs</span>
-                    </div>
-                </div>
-            `).join('')
-            : '<p class="relationship-card">No individual user data to make predictions.</p>'
+    // --- Chart ---
+    const ctx = document.getElementById('monthlyActivityChart').getContext('2d');
+    if (window.activityChart) window.activityChart.destroy(); // prevent duplicates
+    window.activityChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartLabels,
+            datasets: [
+                {
+                    label: 'Actual Messages',
+                    data: chartDataActual,
+                    borderColor: '#4facfe',
+                    backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: 'Predicted Messages',
+                    data: chartDataForecast,
+                    borderColor: '#f093fb',
+                    backgroundColor: 'rgba(240, 147, 251, 0.1)',
+                    borderDash: [5,5],
+                    fill: true,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: true } },
+            scales: {
+                x: { title: { display: true, text: 'Date' } },
+                y: { title: { display: true, text: 'Messages' }, beginAtZero: true }
+            }
         }
-    </div>
+    });
 
-    <div class="chart-container">
-        <h3>📊 Monthly Activity Trend</h3>
-        <canvas id="monthlyActivityChart"></canvas>
-    </div>
-  `;
-  document.getElementById('predictions').innerHTML = html;
+    // --- Render prediction cards as before ---
+    const totalMessages = data.length;
+    const topUser = Object.entries(data.reduce((acc,d)=>{
+        acc[d.user]=(acc[d.user]||0)+1; return acc;
+    },{})).sort((a,b)=>b[1]-a[1])[0];
 
-  // Chart: Monthly Activity Trend (remains the same)
-  const monthlyData = {};
-  data.forEach(d => {
-      const monthYear = d.datetime.toLocaleString('en-US', { year: 'numeric', month: 'short' });
-      monthlyData[monthYear] = (monthlyData[monthYear] || 0) + 1;
-  });
+    const groupForecast7  = forecastValues.slice(0,7).reduce((a,b)=>a+b,0);
+    const groupForecast30 = forecastValues.slice(0,30).reduce((a,b)=>a+b,0);
+    const groupForecast90 = forecastValues.slice(0,90).reduce((a,b)=>a+b,0);
 
-  const sortedMonths = Object.keys(monthlyData).sort((a, b) => {
-    const dateA = new Date(a + ' 1, 2000'); // Append day and year to parse correctly if only month/year
-    const dateB = new Date(b + ' 1, 2000');
-    return dateA - dateB;
-  });
-  const monthlyCounts = sortedMonths.map(month => monthlyData[month]);
+    const users = [...new Set(data.map(d=>d.user))];
+    const userForecasts = {};
+    users.forEach(u=>{
+        const userCounts = {};
+        data.filter(d=>d.user===u).forEach(d=>{
+            const day = d.datetime.toISOString().slice(0,10);
+            userCounts[day] = (userCounts[day]||0)+1;
+        });
+        const arr = Object.keys(userCounts).sort().map(k=>userCounts[k]);
+        const f = arForecast(arr,0.5,90);
+        userForecasts[u] = {
+            '7': f.slice(0,7).reduce((a,b)=>a+b,0),
+            '30': f.slice(0,30).reduce((a,b)=>a+b,0),
+            '90': f.slice(0,90).reduce((a,b)=>a+b,0)
+        };
+    });
 
-  const ctx = document.getElementById('monthlyActivityChart').getContext('2d');
-  chartInstances.push(new Chart(ctx, {
-      type: 'line',
-      data: {
-          labels: sortedMonths,
-          datasets: [{
-              label: 'Messages per Month',
-              data: monthlyCounts,
-              borderColor: '#4facfe',
-              backgroundColor: 'rgba(79, 172, 254, 0.1)',
-              fill: true,
-              tension: 0.3
-          }]
-      },
-      options: {
-          responsive: true,
-          plugins: {
-              legend: { display: false }
-          },
-          scales: {
-              x: {
-                  title: {
-                      display: true,
-                      text: 'Month'
-                  }
-              },
-              y: {
-                  title: {
-                      display: true,
-                      text: 'Number of Messages'
-                  },
-                  beginAtZero: true
-              }
-          }
-      }
-  }));
+    let html = `
+        <h2>Chat Predictions & Insights</h2>
+        <div class="prediction-card">
+            <h4>Most Talkative User</h4>
+            <div>${topUser ? topUser[0] : 'N/A'} (${topUser ? topUser[1] : 0} msgs)</div>
+        </div>
+        <h3>🔮 Future Message Predictions</h3>
+        <div class="relationship-grid">
+            <div class="relationship-card">
+                <h4>Group Predictions</h4>
+                <div>Next 7 Days: ${groupForecast7}</div>
+                <div>Next 30 Days: ${groupForecast30}</div>
+                <div>Next 90 Days: ${groupForecast90}</div>
+            </div>
+            ${users.map(u=>`
+                <div class="relationship-card">
+                    <h4>${u}'s Predictions</h4>
+                    <div>Next 7 Days: ${userForecasts[u]['7']}</div>
+                    <div>Next 30 Days: ${userForecasts[u]['30']}</div>
+                    <div>Next 90 Days: ${userForecasts[u]['90']}</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    document.getElementById('predictions').innerHTML = html;
 }
