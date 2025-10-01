@@ -15,9 +15,19 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
     const sender = data[i].user;
     const t1 = new Date(data[i].timestamp);
 
+    if (isNaN(t1)) {
+      console.warn("Timestamp inválido:", data[i].timestamp);
+      continue;
+    }
+
     for (let j = i + 1; j <= i + maxGap && j < data.length; j++) {
       const receiver = data[j].user;
       const t2 = new Date(data[j].timestamp);
+
+      if (isNaN(t2)) {
+        console.warn("Timestamp inválido:", data[j].timestamp);
+        continue;
+      }
 
       if (sender !== receiver) {
         const diffMinutes = (t2 - t1) / 60000;
@@ -29,7 +39,6 @@ function generateRelationships(data, maxGap = 15, maxMinutes = 30) {
 
           console.log(`Reply detectado: ${receiver} → ${sender} | diff=${diffMinutes.toFixed(2)} min`);
         } else {
-          // demasiado tiempo
           console.log(`Saltado: ${receiver} → ${sender}, diff=${diffMinutes.toFixed(2)} min > ${maxMinutes}`);
         }
       }
