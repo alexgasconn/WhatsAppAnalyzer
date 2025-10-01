@@ -68,10 +68,15 @@ function generateRelationships(data, maxGap = 5, maxMinutes = 3) {
   const ctx = document.getElementById('replyHeatmap')?.getContext('2d');
   if (!ctx) return; // seguridad
 
+  // Construimos la data
   const matrixData = [];
-  users.forEach((u1, row) => {
-    users.forEach((u2, col) => {
-      matrixData.push({x: col, y: row, v: matrix[u1][u2]});
+  users.forEach((rowUser, row) => {
+    users.forEach((colUser, col) => {
+      matrixData.push({
+        x: col,
+        y: row,
+        v: matrix[rowUser][colUser] // replies de rowUser → colUser
+      });
     });
   });
 
@@ -84,52 +89,66 @@ function generateRelationships(data, maxGap = 5, maxMinutes = 3) {
         backgroundColor(ctx) {
           const value = ctx.dataset.data[ctx.dataIndex].v;
           if (value === 0) return 'rgba(0,0,0,0.05)';
-          const alpha = Math.min(1, value / 50); // ajustar escala si es un chat grande
+          const alpha = Math.min(1, value / 20); // escala: ajusta divisor según densidad
           return `rgba(0, 200, 0, ${alpha})`;
         },
-        width: ({chart}) => chart.chartArea ? (chart.chartArea.width / users.length) - 2 : 10,
-        height: ({chart}) => chart.chartArea ? (chart.chartArea.height / users.length) - 2 : 10,
+        width: ({ chart }) =>
+          chart.chartArea ? (chart.chartArea.width / users.length) - 2 : 10,
+        height: ({ chart }) =>
+          chart.chartArea ? (chart.chartArea.height / users.length) - 2 : 10,
       }]
     },
     options: {
+      aspectRatio: 1,
       scales: {
-        x: { type: 'category', labels: users, position: 'top', grid: {display: false} },
-        y: { type: 'category', labels: users, grid: {display: false} }
+        x: {
+          type: 'category',
+          labels: users,
+          position: 'top',
+          grid: { display: false }
+        },
+        y: {
+          type: 'category',
+          labels: users,
+          grid: { display: false }
+        }
       },
       plugins: {
         tooltip: {
           callbacks: {
             title: () => '',
             label: ctx => {
-              const {x, y, v} = ctx.raw;
+              const { x, y, v } = ctx.raw;
               return `${users[y]} → ${users[x]}: ${v} replies`;
             }
           }
-        }
+        },
+        legend: { display: false }
       }
     }
   });
-}
 
-function parseTimestamp(ts) {
-  if (!ts) return null;
 
-  // si ya es Date válido
-  if (ts instanceof Date && !isNaN(ts)) return ts;
+  function parseTimestamp(ts) {
+    if (!ts) return null;
 
-  // si es número de ms
-  if (typeof ts === "number") return new Date(ts);
+    // si ya es Date válido
+    if (ts instanceof Date && !isNaN(ts)) return ts;
 
-  // Intentamos ISO directo
-  let t = new Date(ts);
-  if (!isNaN(t)) return t;
+    // si es número de ms
+    if (typeof ts === "number") return new Date(ts);
 
-  // WhatsApp style dd/MM/yy, HH:mm
-  const match = ts.match(/(\d{2})\/(\d{2})\/(\d{2}), (\d{2}):(\d{2})/);
-  if (match) {
-    const [, dd, mm, yy, HH, MM] = match;
-    return new Date(`20${yy}-${mm}-${dd}T${HH}:${MM}:00`);
+    // Intentamos ISO directo
+    let t = new Date(ts);
+    if (!isNaN(t)) return t;
+
+    // WhatsApp style dd/MM/yy, HH:mm
+    const match = ts.match(/(\d{2})\/(\d{2})\/(\d{2}), (\d{2}):(\d{2})/);
+    if (match) {
+      const [, dd, mm, yy, HH, MM] = match;
+      return new Date(`20${yy}-${mm}-${dd}T${HH}:${MM}:00`);
+    }
+
+    return null; // no se pudo parsear
   }
-
-  return null; // no se pudo parsear
 }
