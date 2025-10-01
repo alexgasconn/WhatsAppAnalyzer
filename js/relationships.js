@@ -61,21 +61,22 @@ function generateRelationships(data, maxGap = 5, maxMinutes = 3) {
   }
   html += '</div>';
 
-  // Heatmap
+  // Heatmap con matriz acumulada
   html += '<h2>Reply Heatmap</h2><canvas id="replyHeatmap"></canvas>';
   document.getElementById('relationships').innerHTML = html;
 
   const ctx = document.getElementById('replyHeatmap')?.getContext('2d');
-  if (!ctx) return; // seguridad
+  if (!ctx) return;
 
-  // Construimos la data
+  // Construcción directa de la matriz acumulada
   const matrixData = [];
-  users.forEach((rowUser, row) => {
-    users.forEach((colUser, col) => {
+  users.forEach((sender, row) => {
+    users.forEach((receiver, col) => {
+      const value = matrix[sender][receiver] ?? 0;
       matrixData.push({
-        x: col,
-        y: row,
-        v: matrix[rowUser][colUser] // replies de rowUser → colUser
+        x: col,       // columna = receiver
+        y: row,       // fila = sender
+        v: value
       });
     });
   });
@@ -87,10 +88,10 @@ function generateRelationships(data, maxGap = 5, maxMinutes = 3) {
         label: 'Replies',
         data: matrixData,
         backgroundColor(ctx) {
-          const value = ctx.dataset.data[ctx.dataIndex].v;
-          if (value === 0) return 'rgba(0,0,0,0.05)';
-          const alpha = Math.min(1, value / 20); // escala: ajusta divisor según densidad
-          return `rgba(0, 200, 0, ${alpha})`;
+          const v = ctx.dataset.data[ctx.dataIndex].v;
+          if (v === 0) return 'rgba(0,0,0,0.05)';
+          const alpha = Math.min(1, v / 1000); // ajusta divisor según densidad
+          return `rgba(0,200,0,${alpha})`;
         },
         width: ({ chart }) =>
           chart.chartArea ? (chart.chartArea.width / users.length) - 2 : 10,
@@ -105,12 +106,14 @@ function generateRelationships(data, maxGap = 5, maxMinutes = 3) {
           type: 'category',
           labels: users,
           position: 'top',
-          grid: { display: false }
+          grid: { display: false },
+          title: { display: true, text: 'Receiver' }
         },
         y: {
           type: 'category',
           labels: users,
-          grid: { display: false }
+          grid: { display: false },
+          title: { display: true, text: 'Sender' }
         }
       },
       plugins: {
