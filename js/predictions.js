@@ -1,161 +1,153 @@
-let windowActivityChart = null; // store chart globally
+let windowActivityChart = null;
 
-function generatePredictions(data) {
+function generateWeeklyPredictions(data) {
     const container = document.getElementById('predictions');
     if (!container) return;
-
     if (!data.length) {
         container.innerHTML = `<p>No data to predict.</p>`;
         return;
     }
 
-    // Convert dates to Date objects
+    // Convert to Date objects
     data.forEach(d => {
         if (!(d.datetime instanceof Date)) d.datetime = new Date(d.datetime);
     });
 
-    // --- Aggregate daily counts ---
-    const dailyCounts = {};
+    // --- Aggregate weekly counts ---
+    function getWeekKey(date) {
+        const d = new Date(date);
+        const firstDay = new Date(d.getFullYear(),0,1);
+        const weekNo = Math.ceil((((d - firstDay)/86400000)+firstDay.getDay()+1)/7);
+        return `${d.getFullYear()}-W${weekNo}`;
+    }
+
+    const weeklyCounts = {};
     data.forEach(d => {
-        const day = d.datetime.toISOString().slice(0,10);
-        dailyCounts[day] = (dailyCounts[day] || 0) + 1;
+        const week = getWeekKey(d.datetime);
+        weeklyCounts[week] = (weeklyCounts[week]||0)+1;
     });
 
-    const sortedDays = Object.keys(dailyCounts).sort();
-    const countsArray = sortedDays.map(d => dailyCounts[d]);
+    const sortedWeeks = Object.keys(weeklyCounts).sort();
+    const countsArray = sortedWeeks.map(w => weeklyCounts[w]);
 
-    // --- Forecast function: MA + Exponential Smoothing ---
-    function smoothForecast(arr, days=30, alpha=0.3, maWindow=7) {
-        if (!arr.length) return Array(days).fill(0);
+    // --- Forecast: Moving Average + Exponential Smoothing ---
+    function weeklyForecast(arr, weeks=12, alpha=0.3, maWindow=3) {
+        if (!arr.length) return Array(weeks).fill(0);
         const forecast = [];
         let series = [...arr];
         let prev = arr[arr.length-1];
-
-        for (let i = 0; i < days; i++) {
-            // Moving average of last `maWindow` points
+        for (let i=0;i<weeks;i++) {
             const windowVals = series.slice(-maWindow);
             const ma = windowVals.reduce((a,b)=>a+b,0)/windowVals.length;
-            // Exponential smoothing
             const nextVal = alpha*ma + (1-alpha)*prev;
             forecast.push(Math.round(nextVal));
             prev = nextVal;
-            series.push(nextVal); // feed next value for evolving forecast
+            series.push(nextVal);
         }
         return forecast;
     }
 
-    const forecastDays = 90;
-    const forecastValues = smoothForecast([...countsArray], forecastDays, 0.3, 7);
+    const forecastWeeks = 12;
+    const forecastValues = weeklyForecast(countsArray, forecastWeeks, 0.3, 3);
 
-    // --- Generate forecast dates ---
-    const lastDate = new Date(sortedDays[sortedDays.length-1]);
-    const forecastDates = Array.from({length:forecastDays},(_,i)=>{
-        const d = new Date(lastDate);
-        d.setDate(d.getDate() + i + 1);
-        return d.toISOString().slice(0,10);
-    });
+    // --- Generate week labels for forecast ---
+    const lastWeekParts = sortedWeeks[sortedWeeks.length-1].split('-W');
+    const lastYear = parseInt(lastWeekParts[0]);
+    let lastWeekNo = parseInt(lastWeekParts[1]);
+    const forecastLabels = [];
+    for (let i=1;i<=forecastWeeks;i++){
+        lastWeekNo++;
+        let year = lastYear;
+        let week = lastWeekNo;
+        if (week>52){ week-=52; year+=1;}
+        forecastLabels.push(`${year}-W${week}`);
+    }
 
     // --- Chart data ---
-    const chartLabels = [...sortedDays, ...forecastDates];
-    const chartDataActual = [...countsArray, ...Array(forecastDays).fill(null)];
-    const chartDataForecast = [...Array(sortedDays.length).fill(null), ...forecastValues];
+    const chartLabels = [...sortedWeeks, ...forecastLabels];
+    const chartDataActual = [...countsArray, ...Array(forecastWeeks).fill(null)];
+    const chartDataForecast = [...Array(sortedWeeks.length).fill(null), ...forecastValues];
 
-    // --- Compute group + top user ---
+    // --- Top user + per-user forecast ---
     const userCounts = {};
-    data.forEach(d => userCounts[d.user] = (userCounts[d.user] || 0) + 1);
+    data.forEach(d => userCounts[d.user] = (userCounts[d.user]||0)+1);
     const topUser = Object.entries(userCounts).sort((a,b)=>b[1]-a[1])[0];
 
-    // --- Compute group forecast sums ---
-    const groupForecast7  = forecastValues.slice(0,7).reduce((a,b)=>a+b,0);
-    const groupForecast30 = forecastValues.slice(0,30).reduce((a,b)=>a+b,0);
-    const groupForecast90 = forecastValues.slice(0,90).reduce((a,b)=>a+b,0);
-
-    // --- Compute per-user forecasts ---
     const users = [...new Set(data.map(d=>d.user))];
     const userForecasts = {};
     users.forEach(u=>{
-        const userCountsPerDay = {};
+        const userWeeks = {};
         data.filter(d=>d.user===u).forEach(d=>{
-            const day = d.datetime.toISOString().slice(0,10);
-            userCountsPerDay[day] = (userCountsPerDay[day]||0)+1;
+            const w = getWeekKey(d.datetime);
+            userWeeks[w] = (userWeeks[w]||0)+1;
         });
-        const arr = Object.keys(userCountsPerDay).sort().map(k=>userCountsPerDay[k]);
-        const f = smoothForecast(arr, 90, 0.3, 7);
-        userForecasts[u] = {
-            '7': f.slice(0,7).reduce((a,b)=>a+b,0),
-            '30': f.slice(0,30).reduce((a,b)=>a+b,0),
-            '90': f.slice(0,90).reduce((a,b)=>a+b,0)
-        };
+        const arr = Object.keys(userWeeks).sort().map(k=>userWeeks[k]);
+        const f = weeklyForecast(arr, forecastWeeks, 0.3, 3);
+        userForecasts[u] = f;
     });
 
     // --- Render HTML ---
     const html = `
-        <h2>Chat Predictions & Insights</h2>
+        <h2>Chat Predictions & Insights (Weekly)</h2>
         <div class="prediction-card">
             <h4>Most Talkative User</h4>
             <div>${topUser ? topUser[0] : 'N/A'} (${topUser ? topUser[1] : 0} msgs)</div>
         </div>
-
-        <h3>🔮 Future Message Predictions</h3>
+        <h3>🔮 Weekly Predictions</h3>
         <div class="relationship-grid">
             <div class="relationship-card">
-                <h4>Group Predictions</h4>
-                <div>Next 7 Days: ${groupForecast7}</div>
-                <div>Next 30 Days: ${groupForecast30}</div>
-                <div>Next 90 Days: ${groupForecast90}</div>
+                <h4>Group Forecast (Next ${forecastWeeks} Weeks)</h4>
+                ${forecastValues.map((v,i)=>`<div>${forecastLabels[i]}: ${v}</div>`).join('')}
             </div>
             ${users.map(u=>`
                 <div class="relationship-card">
-                    <h4>${u}'s Predictions</h4>
-                    <div>Next 7 Days: ${userForecasts[u]['7']}</div>
-                    <div>Next 30 Days: ${userForecasts[u]['30']}</div>
-                    <div>Next 90 Days: ${userForecasts[u]['90']}</div>
+                    <h4>${u}'s Forecast</h4>
+                    ${userForecasts[u].map((v,i)=>`<div>${forecastLabels[i]}: ${v}</div>`).join('')}
                 </div>
             `).join('')}
         </div>
-
         <div class="chart-container">
-            <h3>📊 Daily Messages: Actual vs Predicted</h3>
-            <canvas id="monthlyActivityChart" width="600" height="300"></canvas>
+            <h3>📊 Weekly Messages: Actual vs Predicted</h3>
+            <canvas id="monthlyActivityChart" width="800" height="400"></canvas>
         </div>
     `;
     container.innerHTML = html;
 
     // --- Render Chart ---
     const canvas = document.getElementById('monthlyActivityChart');
-    if (canvas) {
+    if (canvas){
         const ctx = canvas.getContext('2d');
         if (windowActivityChart) windowActivityChart.destroy();
-        windowActivityChart = new Chart(ctx, {
-            type: 'line',
-            data: {
+        windowActivityChart = new Chart(ctx,{
+            type:'line',
+            data:{
                 labels: chartLabels,
-                datasets: [
+                datasets:[
                     {
-                        label: 'Actual Messages',
+                        label:'Actual Messages',
                         data: chartDataActual,
-                        borderColor: '#4facfe',
-                        backgroundColor: 'rgba(79, 172, 254, 0.1)',
-                        fill: true,
-                        tension: 0.3
+                        borderColor:'#4facfe',
+                        backgroundColor:'rgba(79, 172, 254, 0.1)',
+                        fill:true,
+                        tension:0.3
                     },
                     {
-                        label: 'Predicted Messages',
+                        label:'Predicted Messages',
                         data: chartDataForecast,
-                        borderColor: '#f093fb',
-                        backgroundColor: 'rgba(240, 147, 251, 0.1)',
-                        borderDash: [5,5],
-                        fill: true,
-                        tension: 0.3
+                        borderColor:'#f093fb',
+                        backgroundColor:'rgba(240, 147, 251, 0.1)',
+                        borderDash:[5,5],
+                        fill:true,
+                        tension:0.3
                     }
                 ]
             },
-            options: {
-                responsive: true,
-                plugins: { legend: { display: true } },
-                scales: {
-                    x: { title: { display: true, text: 'Date' } },
-                    y: { title: { display: true, text: 'Messages' }, beginAtZero: true }
+            options:{
+                responsive:true,
+                plugins:{ legend:{display:true} },
+                scales:{
+                    x:{ title:{display:true, text:'Week'} },
+                    y:{ title:{display:true, text:'Messages'}, beginAtZero:true }
                 }
             }
         });
