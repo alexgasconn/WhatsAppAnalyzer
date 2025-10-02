@@ -15,6 +15,16 @@ function generateOverview(data) {
   const userCounts = {};
   data.forEach(d => userCounts[d.user] = (userCounts[d.user] || 0) + 1);
 
+  // Extras
+  const avgPerUser = (data.length / users.length).toFixed(1);
+  const longestMsg = data.reduce((a, b) => a.message.length > b.message.length ? a : b);
+  const shortestMsg = data.reduce((a, b) => a.message.length < b.message.length ? a : b);
+
+  // Hora más activa
+  const hourlyCounts = new Array(24).fill(0);
+  data.forEach(d => hourlyCounts[d.datetime.getHours()]++);
+  const peakHour = hourlyCounts.indexOf(Math.max(...hourlyCounts));
+
   const html = `
     <div class="stats-grid">
       <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
@@ -37,11 +47,21 @@ function generateOverview(data) {
         <div class="value">${totalWords.toLocaleString()}</div>
         <div class="label">${avgWordsPerMsg} avg per message</div>
       </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%);">
+        <h3>Avg Msgs/User</h3>
+        <div class="value">${avgPerUser}</div>
+        <div class="label">average participation</div>
+      </div>
+      <div class="stat-card" style="background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%);">
+        <h3>Peak Hour</h3>
+        <div class="value">${peakHour}:00</div>
+        <div class="label">most active hour</div>
+      </div>
     </div>
 
     <div class="chart-container">
-      <h3>📱 Message Distribution</h3>
-      <canvas id="overviewPie"></canvas>
+      <h3>📊 Messages per User</h3>
+      <canvas id="overviewBars"></canvas>
     </div>
 
     <div class="chart-container">
@@ -55,25 +75,36 @@ function generateOverview(data) {
       </select>
       <canvas id="overviewTimeline"></canvas>
     </div>
+
+    <div class="chart-container">
+      <h3>🕒 Hourly Activity</h3>
+      <canvas id="hourlyChart"></canvas>
+    </div>
+
+    <div class="extra-info">
+      <p><b>Longest message</b> (${longestMsg.user}): ${longestMsg.message}</p>
+      <p><b>Shortest message</b> (${shortestMsg.user}): ${shortestMsg.message}</p>
+    </div>
   `;
 
   document.getElementById('overviewContent').innerHTML = html;
 
-  // Chart 1: Message Distribution
-  const ctx1 = document.getElementById('overviewPie').getContext('2d');
+  // Chart 1: Horizontal Bar Messages per User
+  const ctx1 = document.getElementById('overviewBars').getContext('2d');
   chartInstances.push(new Chart(ctx1, {
-    type: 'doughnut',
+    type: 'bar',
     data: {
       labels: Object.keys(userCounts),
       datasets: [{
         data: Object.values(userCounts),
-        backgroundColor: ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#feca57']
+        backgroundColor: '#667eea'
       }]
     },
     options: {
+      indexAxis: 'y',
       responsive: true,
       plugins: {
-        legend: { position: 'bottom' }
+        legend: { display: false }
       }
     }
   }));
@@ -134,11 +165,6 @@ function generateOverview(data) {
         responsive: true,
         plugins: {
           legend: { display: false }
-        },
-        scales: {
-          x: {
-            type: 'category'
-          }
         }
       }
     });
@@ -151,4 +177,23 @@ function generateOverview(data) {
   document.getElementById("timeGranularity").addEventListener("change", e => {
     renderTimeline(e.target.value);
   });
+
+  // Chart 3: Hourly Activity
+  const ctx3 = document.getElementById('hourlyChart').getContext('2d');
+  chartInstances.push(new Chart(ctx3, {
+    type: 'bar',
+    data: {
+      labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+      datasets: [{
+        data: hourlyCounts,
+        backgroundColor: '#43e97b'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  }));
 }
