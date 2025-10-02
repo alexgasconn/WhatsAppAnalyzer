@@ -1,95 +1,109 @@
 /**
- * Generates and displays user-specific statistics and charts.
+ * Generates user-specific statistics and charts in individual cards.
  * @param {Array} data The parsed chat data.
  */
 function generateUsers(data) {
   const userStats = {};
+  const now = new Date();
+
+  // Precompute message stats per user
   data.forEach(d => {
     if (!userStats[d.user]) {
       userStats[d.user] = {
         messages: 0,
         words: 0,
         avgLength: [],
-        emojis: 0
+        emojis: 0,
+        lastMessage: d,
+        firstMessage: d,
+        timestamps: [],
+        responseTimes: []
       };
     }
-    userStats[d.user].messages++;
+    const u = userStats[d.user];
+    u.messages++;
     const words = d.message.split(/\s+/).filter(Boolean).length;
-    userStats[d.user].words += words;
-    userStats[d.user].avgLength.push(d.message.length);
-    
-    // Check if emojiDictionary is loaded before using it
+    u.words += words;
+    u.avgLength.push(d.message.length);
+
+    if (d.datetime > u.lastMessage.datetime) u.lastMessage = d;
+    if (d.datetime < u.firstMessage.datetime) u.firstMessage = d;
+
+    u.timestamps.push(d.datetime);
+
+    // emoji count
     if (window.emojiDictionary) {
       for (const char of d.message) {
         if (window.emojiDictionary.getName(char)) {
-          userStats[d.user].emojis++;
+          u.emojis++;
         }
       }
     }
   });
 
-  const users = Object.keys(userStats);
-  const html = `
-    <div class="chart-container">
-      <h3>💬 Messages per User</h3>
-      <canvas id="usersMessages"></canvas>
-    </div>
+  // Compute per-user derived stats
+  Object.keys(userStats).forEach(user => {
+    const u = userStats[user];
+    const daysActive = Math.max(1, (now - new Date(u.firstMessage.datetime)) / (1000*60*60*24));
+    u.avgPerDay = (u.messages / daysActive).toFixed(2);
+    u.avgMsgLength = (u.words / u.messages).toFixed(1);
 
-    <div class="chart-container">
-      <h3>📝 Words per User</h3>
-      <canvas id="usersWords"></canvas>
-    </div>
+    // Common hours (histogram by hour of day)
+    const hours = Array(24).fill(0);
+    u.timestamps.forEach(ts => {
+      hours[new Date(ts).getHours()]++;
+    });
+    u.hourHist = hours;
+  });
 
-    <div class="chart-container">
-      <h3>😊 Emoji Usage</h3>
-      <canvas id="usersEmojis"></canvas>
-    </div>
-  `;
+  // Render user cards
+  let html = `<div class="user-cards">`;
+  Object.keys(userStats).forEach(user => {
+    const u = userStats[user];
+    const cardId = user.replace(/\W+/g, "_");
+
+    html += `
+      <div class="user-card">
+        <h3>${user}</h3>
+        <p><b>First message:</b> ${new Date(u.firstMessage.datetime).toLocaleString()}</p>
+        <p><b>Last message:</b> ${new Date(u.lastMessage.datetime).toLocaleString()}</p>
+        <p><b>Total messages:</b> ${u.messages}</p>
+        <p><b>Words:</b> ${u.words}</p>
+        <p><b>Avg msg length:</b> ${u.avgMsgLength} chars</p>
+        <p><b>Avg per day:</b> ${u.avgPerDay}</p>
+        <p><b>Emojis used:</b> ${u.emojis}</p>
+
+        <div class="chart-container">
+          <canvas id="hours_${cardId}"></canvas>
+        </div>
+      </div>
+    `;
+  });
+  html += `</div>`;
 
   document.getElementById('users').innerHTML = html;
 
-  // Chart 1: Messages per User (Bar)
-  const ctx1 = document.getElementById('usersMessages').getContext('2d');
-  chartInstances.push(new Chart(ctx1, {
-    type: 'bar',
-    data: {
-      labels: users,
-      datasets: [{
-        label: 'Total Messages',
-        data: users.map(u => userStats[u].messages),
-        backgroundColor: 'rgba(102, 126, 234, 0.7)'
-      }]
-    },
-    options: { responsive: true, plugins: { legend: { display: false } } }
-  }));
+  // Now attach charts per user (histogram of hours)
+  Object.keys(userStats).forEach(user => {
+    const u = userStats[user];
+    const cardId = user.replace(/\W+/g, "_");
 
-  // Chart 2: Words per User (Bar)
-  const ctx2 = document.getElementById('usersWords').getContext('2d');
-  chartInstances.push(new Chart(ctx2, {
-    type: 'bar',
-    data: {
-      labels: users,
-      datasets: [{
-        label: 'Total Words',
-        data: users.map(u => userStats[u].words),
-        backgroundColor: 'rgba(240, 147, 251, 0.7)'
-      }]
-    },
-    options: { responsive: true, plugins: { legend: { display: false } } }
-  }));
-
-  // Chart 3: Emoji Usage per User (Bar)
-  const ctx3 = document.getElementById('usersEmojis').getContext('2d');
-  chartInstances.push(new Chart(ctx3, {
-    type: 'bar',
-    data: {
-      labels: users,
-      datasets: [{
-        label: 'Emojis Used',
-        data: users.map(u => userStats[u].emojis),
-        backgroundColor: 'rgba(255, 193, 7, 0.7)'
-      }]
-    },
-    options: { responsive: true, plugins: { legend: { display: false } } }
-  }));
+    const ctx = document.getElementById(`hours_${cardId}`).getContext('2d');
+    chartInstances.push(new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: Array.from({length: 24}, (_, i) => i+":00"),
+        datasets: [{
+          label: 'Messages by Hour',
+          data: u.hourHist,
+          backgroundColor: 'rgba(54, 162, 235, 0.6)'
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { x: { ticks: { maxRotation: 90, minRotation: 45 } } }
+      }
+    }));
+  });
 }
