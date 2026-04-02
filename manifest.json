@@ -1,0 +1,112 @@
+{
+    "name": "WhatsApp Chat Analyzer Pro",
+    "short_name": "WA Analyzer",
+    "description": "Analiza tus chats de WhatsApp con estadísticas avanzadas, timeline, predicciones y gráficos interactivos",
+    "start_url": "/index.html",
+    "scope": "/",
+    "display": "standalone",
+    "theme_color": "#25D366",
+    "background_color": "#ffffff",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%2325D366' width='192' height='192' rx='45'/><text x='50%' y='50%' font-size='100' fill='white' text-anchor='middle' dy='.3em' font-family='Arial, sans-serif' font-weight='bold'>💬</text></svg>",
+            "sizes": "192x192",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%2325D366' width='512' height='512' rx='120'/><text x='50%' y='50%' font-size='280' fill='white' text-anchor='middle' dy='.3em' font-family='Arial, sans-serif' font-weight='bold'>💬</text></svg>",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect fill='%23f5f5f5' width='540' height='720'/><rect fill='%2325D366' width='540' height='120'/><text x='270' y='60' font-size='40' fill='white' text-anchor='middle' dy='.3em'>Analizador</text><rect fill='white' x='20' y='150' width='500' height='80' rx='10' fill-opacity='0.8'/><text x='270' y='195' font-size='20' text-anchor='middle'>Estadísticas en tiempo real</text></svg>",
+            "sizes": "540x720",
+            "type": "image/svg+xml",
+            "form_factor": "narrow",
+            "purpose": "any"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Subir Chat",
+            "short_name": "Subir",
+            "description": "Carga un chat de WhatsApp para análisis",
+            "url": "/index.html?action=upload",
+            "icons": [
+                {
+                    "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%2325D366' width='96' height='96' rx='22'/><text x='48' y='48' font-size='50' fill='white' text-anchor='middle' dy='.3em'>📁</text></svg>",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "Ver Estadísticas",
+            "short_name": "Estadísticas",
+            "description": "Revisa las estadísticas del chat",
+            "url": "/index.html?action=stats",
+            "icons": [
+                {
+                    "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%2325D366' width='96' height='96' rx='22'/><text x='48' y='48' font-size='50' fill='white' text-anchor='middle' dy='.3em'>📊</text></svg>",
+                    "sizes": "96x96"
+                }
+            ]
+        }
+    ],
+    "categories": [
+        "productivity",
+        "utilities"
+    ],
+    "screenshots_wide": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 600'><rect fill='%23f5f5f5' width='1024' height='600'/><rect fill='%2325D366' width='1024' height='100'/><text x='512' y='50' font-size='50' fill='white' text-anchor='middle' dy='.3em'>WhatsApp Chat Analyzer</text></svg>",
+            "sizes": "1024x600",
+            "type": "image/svg+xml",
+            "form_factor": "wide"
+        }
+    ],
+    "share_target": {
+        "action": "/share",
+        "method": "POST",
+        "enctype": "multipart/form-data",
+        "params": {
+            "files": [
+                {
+                    "name": "chat",
+                    "accept": [
+                        "text/plain",
+                        ".txt"
+                    ]
+                }
+            ]
+        }
+    },
+    "file_handlers": [
+        {
+            "action": "/open-file",
+            "accept": {
+                "text/plain": [
+                    ".txt"
+                ]
+            },
+            "icons": [
+                {
+                    "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'><rect fill='%2325D366' width='256' height='256'/><text x='128' y='128' font-size='140' fill='white' text-anchor='middle' dy='.3em'>💬</text></svg>",
+                    "sizes": "256x256"
+                }
+            ]
+        }
+    ],
+    "protocol_handlers": [
+        {
+            "protocol": "web+wachat",
+            "url": "/open?file=%s"
+        }
+    ],
+    "prefer_related_applications": false,
+    "related_applications": []
+}

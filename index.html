@@ -1,64 +1,103 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
+
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#25D366" />
+  <meta name="description" content="Analiza tus chats de WhatsApp con estadísticas avanzadas" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="WA Analyzer" />
+
   <title>WhatsApp Chat Analyzer Pro</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%2325D366' width='192' height='192'/><text x='50%' y='50%' font-size='100' fill='white' text-anchor='middle' dy='.3em'>💬</text></svg>">
+  <link rel="apple-touch-icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%2325D366' width='180' height='180'/><text x='50%' y='50%' font-size='90' fill='white' text-anchor='middle' dy='.3em'>💬</text></svg>">
+
+  <link rel="stylesheet" href="css/style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
   <script src="https://cdn.jsdelivr.net/npm/sentiment@5.0.2/build/sentiment.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/emoji-dictionary@1.0.3/index.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.1.2/src/wordcloud2.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@1.2.0"></script>
-
-  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@3.0.0/index.min.js"></script>
 </head>
+
 <body>
   <div class="container">
     <header>
-      <h1>💬 WhatsApp Chat Analyzer Pro</h1>
-      <p class="subtitle">Discover insights from your conversations</p>
+      <div class="header-content">
+        <h1>💬 WhatsApp Chat Analyzer Pro</h1>
+        <p class="subtitle">Descubre insights profundos de tus conversaciones</p>
+      </div>
+      <button id="themeToggle" class="theme-toggle" title="Cambiar tema">🌙</button>
     </header>
 
-    <div class="upload-section">
+    <div class="upload-section" id="uploadSection">
       <div class="file-input-wrapper">
         <label class="upload-btn">
-          📁 Choose WhatsApp Chat File
+          📁 Seleccionar Chat de WhatsApp
           <input type="file" id="fileInput" accept=".txt" />
         </label>
       </div>
       <div class="file-name" id="fileName"></div>
-    </div>
 
-    <!-- Date Filter Section -->
-      <div class="date-filter-section" style="margin-top: 20px; display: none;" id="dateFilterSection">
-        <label for="startDate">From:</label>
-        <input type="date" id="startDate" class="filter-input">
-        <label for="endDate" style="margin-left: 15px;">To:</label>
-        <input type="date" id="endDate" class="filter-input">
-        <button id="applyDateFilter" class="upload-btn" style="margin-left: 15px; padding: 10px 20px; font-size: 0.9em;">Apply Filter</button>
-        <button id="clearDateFilter" class="upload-btn" style="background: #ccc; margin-left: 5px; padding: 10px 20px; font-size: 0.9em;">Clear Filter</button>
+      <div class="date-filter-section" id="dateFilterSection" style="display: none; margin-top: 20px;">
+        <div class="filter-controls">
+          <div class="filter-group">
+            <label for="startDate">Desde:</label>
+            <input type="date" id="startDate" class="filter-input">
+          </div>
+          <div class="filter-group">
+            <label for="endDate">Hasta:</label>
+            <input type="date" id="endDate" class="filter-input">
+          </div>
+          <div class="filter-group">
+            <label for="periodFilter">Período:</label>
+            <select id="periodFilter" class="filter-input">
+              <option value="all">Todo</option>
+              <option value="week">Última Semana</option>
+              <option value="month">Último Mes</option>
+              <option value="year">Último Año</option>
+            </select>
+          </div>
+          <button id="applyDateFilter" class="upload-btn small">Aplicar</button>
+          <button id="clearDateFilter" class="upload-btn small secondary">Limpiar</button>
+        </div>
+      </div>
+
+      <div class="export-controls" id="exportControls" style="display: none; margin-top: 15px;">
+        <button id="exportJSON" class="export-btn" title="Exportar como JSON">📥 JSON</button>
+        <button id="exportCSV" class="export-btn" title="Exportar como CSV">📊 CSV</button>
+        <button id="exportImage" class="export-btn" title="Descargar gráfico">🖼️ Imagen</button>
+        <button id="shareBrowser" class="export-btn" title="Compartir">📤 Compartir</button>
       </div>
     </div>
 
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="overview">📊 Overview</button>
-      <button class="tab-btn" data-tab="activity">⏰ Activity</button>
-      <button class="tab-btn" data-tab="users">👥 Users</button>
-      <button class="tab-btn" data-tab="relationships">💕 Relationships</button>
-      <button class="tab-btn" data-tab="predictions">🔮 Predictions</button>
-      <button class="tab-btn" data-tab="game">🎮 Game</button>
-      <button class="tab-btn" data-tab="content">💭 Content</button>
-    </div>
+    <nav class="tabs" id="tabsNav">
+      <button class="tab-btn active" data-tab="overview">📊 Resumen</button>
+      <button class="tab-btn" data-tab="activity">⏰ Actividad</button>
+      <button class="tab-btn" data-tab="users">👥 Usuarios</button>
+      <button class="tab-btn" data-tab="timeline">📅 Línea Temporal</button>
+      <button class="tab-btn" data-tab="relationships">💕 Relaciones</button>
+      <button class="tab-btn" data-tab="predictions">🔮 Predicciones</button>
+      <button class="tab-btn" data-tab="content">💭 Contenido</button>
+      <button class="tab-btn" data-tab="game">🎮 Juego</button>
+    </nav>
 
     <div id="overview" class="tab-content" style="display:block;">
       <div class="info-box">
-        <h4>How to export your WhatsApp chat:</h4>
+        <h4>📱 Cómo exportar tu chat:</h4>
         <ul>
-          <li>Open WhatsApp and go to the chat you want to analyze</li>
-          <li>Tap the three dots (⋮) > More > Export chat</li>
-          <li>Choose "Without Media" and save the .txt file</li>
-          <li>Upload the file here to see amazing insights!</li>
+          <li><strong>Android:</strong> Abre WhatsApp → Chat → ⋮ → Más → Exportar chat → Sin medios</li>
+          <li><strong>iPhone:</strong> Abre WhatsApp → Chat → Editar → Exportar chat → Sin medios</li>
+          <li>Guarda el archivo .txt y súbelo aquí para análisis profundo</li>
         </ul>
       </div>
       <div id="overviewContent"></div>
@@ -66,19 +105,23 @@
 
     <div id="activity" class="tab-content"></div>
     <div id="users" class="tab-content"></div>
+    <div id="timeline" class="tab-content"></div>
     <div id="relationships" class="tab-content"></div>
     <div id="predictions" class="tab-content"></div>
-    <div id="game" class="tab-content"></div>
     <div id="content" class="tab-content"></div>
+    <div id="game" class="tab-content"></div>
   </div>
 
+  <script>if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').then(r => console.log('SW registered')).catch(e => console.log('SW error:', e)); }</script>
   <script src="js/main.js"></script>
   <script src="js/overview.js"></script>
   <script src="js/activity.js"></script>
   <script src="js/users.js"></script>
+  <script src="js/timeline.js"></script>
   <script src="js/relationships.js"></script>
   <script src="js/predictions.js"></script>
-  <script src="js/game.js"></script>
   <script src="js/content.js"></script>
+  <script src="js/game.js"></script>
 </body>
+
 </html>

@@ -1,199 +1,196 @@
-/**
- * Generates and displays the overview statistics and charts.
- * @param {Array} data The parsed chat data.
- */
+// OVERVIEW: Estadísticas Generales y Resumen
+
 function generateOverview(data) {
+  if (data.length === 0) {
+    document.getElementById('overviewContent').innerHTML = '<p class="error-message">Sin datos</p>';
+    return;
+  }
+
   const users = [...new Set(data.map(d => d.user))];
   const dates = data.map(d => d.datetime);
   const firstDate = new Date(Math.min(...dates));
   const lastDate = new Date(Math.max(...dates));
-  const daysDiff = Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24));
+  const daysDiff = Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)) + 1;
 
   const totalWords = data.reduce((sum, d) => sum + d.message.split(/\s+/).filter(Boolean).length, 0);
   const avgWordsPerMsg = (totalWords / data.length).toFixed(1);
 
   const userCounts = {};
-  data.forEach(d => userCounts[d.user] = (userCounts[d.user] || 0) + 1);
+  let maxUserMessages = 0;
+  data.forEach(d => {
+    userCounts[d.user] = (userCounts[d.user] || 0) + 1;
+    maxUserMessages = Math.max(maxUserMessages, userCounts[d.user]);
+  });
 
-  // Extras
   const avgPerUser = (data.length / users.length).toFixed(1);
   const longestMsg = data.reduce((a, b) => a.message.length > b.message.length ? a : b);
-  const shortestMsg = data.reduce((a, b) => a.message.length < b.message.length ? a : b);
 
-  // Hora más activa
   const hourlyCounts = new Array(24).fill(0);
   data.forEach(d => hourlyCounts[d.datetime.getHours()]++);
   const peakHour = hourlyCounts.indexOf(Math.max(...hourlyCounts));
+  const peakHourCount = Math.max(...hourlyCounts);
 
   const html = `
     <div class="stats-grid">
-      <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <h3>Total Messages</h3>
+      <div class="stat-card">
+        <h3>💬 Total Mensajes</h3>
         <div class="value">${data.length.toLocaleString()}</div>
-        <div class="label">${(data.length / daysDiff).toFixed(1)} per day</div>
+        <div class="label">${(data.length / daysDiff).toFixed(1)} por día</div>
       </div>
-      <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-        <h3>Participants</h3>
+      <div class="stat-card">
+        <h3>👥 Participantes</h3>
         <div class="value">${users.length}</div>
-        <div class="label">${users.join(', ')}</div>
+        <div class="label">${Math.round((data.length / users.length))} msg promedio</div>
       </div>
-      <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-        <h3>Duration</h3>
+      <div class="stat-card">
+        <h3>📅 Duración</h3>
         <div class="value">${daysDiff}</div>
-        <div class="label">days of conversation</div>
+        <div class="label">días</div>
       </div>
-      <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-        <h3>Total Words</h3>
+      <div class="stat-card">
+        <h3>📝 Total Palabras</h3>
         <div class="value">${totalWords.toLocaleString()}</div>
-        <div class="label">${avgWordsPerMsg} avg per message</div>
+        <div class="label">${avgWordsPerMsg} por mensaje</div>
       </div>
-      <div class="stat-card" style="background: linear-gradient(135deg, #ff9966 0%, #ff5e62 100%);">
-        <h3>Avg Msgs/User</h3>
-        <div class="value">${avgPerUser}</div>
-        <div class="label">average participation</div>
+      <div class="stat-card">
+        <h3>🏆 Más Activo</h3>
+        <div class="value">${Object.entries(userCounts).reduce((a, b) => b[1] > a[1] ? b : a)[1]}</div>
+        <div class="label">${Object.entries(userCounts).reduce((a, b) => b[1] > a[1] ? b : a)[0]}</div>
       </div>
-      <div class="stat-card" style="background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%);">
-        <h3>Peak Hour</h3>
-        <div class="value">${peakHour}:00</div>
-        <div class="label">most active hour</div>
+      <div class="stat-card">
+        <h3>🕐 Hora Pico</h3>
+        <div class="value">${String(peakHour).padStart(2, '0')}:00</div>
+        <div class="label">${peakHourCount} mensajes</div>
       </div>
     </div>
 
     <div class="chart-container">
-      <h3>📊 Messages per User</h3>
-      <canvas id="overviewBars"></canvas>
+      <h3>📊 Mensajes por Usuario</h3>
+      <div style="height: 300px;"><canvas id="userMessagesChart"></canvas></div>
     </div>
 
     <div class="chart-container">
-      <h3>📈 Messages Over Time</h3>
-      <label for="timeGranularity">Granularity: </label>
-      <select id="timeGranularity">
-        <option value="day">Daily</option>
-        <option value="week">Weekly</option>
-        <option value="month">Monthly</option>
-        <option value="year">Yearly</option>
-      </select>
-      <canvas id="overviewTimeline"></canvas>
+      <h3>🕒 Actividad por Hora del Día</h3>
+      <div style="height: 300px;"><canvas id="hourlyChart"></canvas></div>
     </div>
 
     <div class="chart-container">
-      <h3>🕒 Hourly Activity</h3>
-      <canvas id="hourlyChart"></canvas>
+      <h3>📈 Mensajes en el Tiempo</h3>
+      <div style="height: 300px;"><canvas id="timelineChart"></canvas></div>
     </div>
 
-    <div class="extra-info">
-      <p><b>Longest message</b> (${longestMsg.user}): ${longestMsg.message}</p>
-      <p><b>Shortest message</b> (${shortestMsg.user}): ${shortestMsg.message}</p>
+    <div class="prediction-card">
+      <h4>📝 Detalles del Mensaje Más Largo</h4>
+      <div style="margin-top: 12px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+        <strong>${longestMsg.user}</strong> (${longestMsg.datetime.toLocaleString('es-ES')})<br>
+        <em style="opacity: 0.9;">"${longestMsg.message.substring(0, 100)}${longestMsg.message.length > 100 ? '...' : ''}"</em><br>
+        <small>${longestMsg.message.length} caracteres</small>
+      </div>
     </div>
   `;
 
   document.getElementById('overviewContent').innerHTML = html;
 
-  // Chart 1: Horizontal Bar Messages per User
-  const ctx1 = document.getElementById('overviewBars').getContext('2d');
-  chartInstances.push(new Chart(ctx1, {
+  // Gráfico 1: Mensajes por Usuario
+  const userLabels = Object.keys(userCounts).sort((a, b) => userCounts[b] - userCounts[a]);
+  const userValues = userLabels.map(u => userCounts[u]);
+
+  const ctx1 = document.getElementById('userMessagesChart');
+  createChart(ctx1, {
     type: 'bar',
     data: {
-      labels: Object.keys(userCounts),
+      labels: userLabels,
       datasets: [{
-        data: Object.values(userCounts),
-        backgroundColor: '#667eea'
+        label: 'Mensajes',
+        data: userValues,
+        backgroundColor: userLabels.map((_, i) => {
+          const colors = ['#25D366', '#667eea', '#764ba2', '#4facfe', '#00f2fe', '#ff9966', '#f5576c'];
+          return colors[i % colors.length];
+        }),
+        borderColor: userLabels.map((_, i) => {
+          const colors = ['#128C7E', '#5568d3', '#653b81', '#0c7dd0', '#00c4a8', '#ff7733', '#c13a2f'];
+          return colors[i % colors.length];
+        }),
+        borderWidth: 2,
+        borderRadius: 8
       }]
     },
     options: {
-      indexAxis: 'y',
       responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: userLabels.length > 5 ? 'y' : 'x',
       plugins: {
         legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true }
       }
     }
-  }));
-
-  // Function to aggregate messages
-  function aggregateMessages(granularity) {
-    const grouped = {};
-    data.forEach(d => {
-      const date = d.datetime;
-      let key;
-      switch (granularity) {
-        case "day":
-          key = date.toISOString().slice(0, 10);
-          break;
-        case "week":
-          const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-          const pastDays = Math.floor((date - firstDayOfYear) / (1000 * 60 * 60 * 24));
-          const week = Math.ceil((pastDays + firstDayOfYear.getDay() + 1) / 7);
-          key = `${date.getFullYear()}-W${week}`;
-          break;
-        case "month":
-          key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-          break;
-        case "year":
-          key = `${date.getFullYear()}`;
-          break;
-      }
-      grouped[key] = (grouped[key] || 0) + 1;
-    });
-    return grouped;
-  }
-
-  // Chart 2: Messages Over Time
-  const ctx2 = document.getElementById('overviewTimeline').getContext('2d');
-  let timelineChart;
-
-  function renderTimeline(granularity) {
-    const grouped = aggregateMessages(granularity);
-    const labels = Object.keys(grouped).sort();
-    const values = labels.map(l => grouped[l]);
-
-    if (timelineChart) timelineChart.destroy();
-
-    timelineChart = new Chart(ctx2, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: `Messages per ${granularity}`,
-          data: values,
-          borderColor: '#667eea',
-          backgroundColor: 'rgba(102, 126, 234, 0.1)',
-          fill: true,
-          tension: 0.4
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false }
-        }
-      }
-    });
-  }
-
-  // Initial render (daily)
-  renderTimeline("day");
-
-  // Listener for dropdown
-  document.getElementById("timeGranularity").addEventListener("change", e => {
-    renderTimeline(e.target.value);
   });
 
-  // Chart 3: Hourly Activity
-  const ctx3 = document.getElementById('hourlyChart').getContext('2d');
-  chartInstances.push(new Chart(ctx3, {
-    type: 'bar',
+  // Gráfico 2: Actividad por Hora
+  const ctx2 = document.getElementById('hourlyChart');
+  createChart(ctx2, {
+    type: 'line',
     data: {
-      labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+      labels: Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0') + ':00'),
       datasets: [{
+        label: 'Mensajes por Hora',
         data: hourlyCounts,
-        backgroundColor: '#43e97b'
+        borderColor: '#25D366',
+        backgroundColor: 'rgba(37, 211, 102, 0.1)',
+        borderWidth: 3,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 5,
+        pointBackgroundColor: '#25D366',
+        pointBorderColor: 'white',
+        pointBorderWidth: 2
       }]
     },
     options: {
       responsive: true,
-      plugins: {
-        legend: { display: false }
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true } },
+      scales: {
+        y: { beginAtZero: true }
       }
     }
-  }));
+  });
+
+  // Gráfico 3: Mensajes en el Tiempo (Diarios)
+  const dailyMessages = new Map();
+  data.forEach(msg => {
+    const date = msg.datetime.toLocaleDateString('es-ES');
+    dailyMessages.set(date, (dailyMessages.get(date) || 0) + 1);
+  });
+
+  const sortedDates = Array.from(dailyMessages.keys()).sort((a, b) => {
+    return new Date(a.split('/').reverse().join('-')) - new Date(b.split('/').reverse().join('-'));
+  }).slice(-30); // Últimos 30 días
+
+  const ctx3 = document.getElementById('timelineChart');
+  createChart(ctx3, {
+    type: 'area',
+    data: {
+      labels: sortedDates,
+      datasets: [{
+        label: 'Mensajes por Día',
+        data: sortedDates.map(d => dailyMessages.get(d)),
+        borderColor: '#667eea',
+        backgroundColor: 'rgba(102, 126, 234, 0.2)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 3,
+        pointBackgroundColor: '#667eea'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
 }
