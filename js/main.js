@@ -99,7 +99,12 @@ function parseChatFile(text) {
 
       const [_, date, time, user, message] = match;
       const parts = date.split('/');
-      const dateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      let year = parseInt(parts[2]);
+      // Arreglar años de 2 dígitos: 25 → 2025, 99 → 2099, 00 → 2000
+      if (year < 100) {
+        year = year < 50 ? year + 2000 : year + 1900;
+      }
+      const dateObj = new Date(year, parseInt(parts[1]) - 1, parseInt(parts[0]));
       const [hours, minutes] = time.split(':').map(Number);
       dateObj.setHours(hours, minutes, 0, 0);
 
@@ -352,14 +357,10 @@ function shareResults() {
 }
 
 // ===== FUNCIONES TAB (STUBS) =====
-function generateOverview(data) { }
-function generateActivity(data) { }
-function generateUsers(data) { }
-function generateTimeline(data) { }
-function generateRelationships(data) { }
-function generatePredictions(data) { }
-function generateContent(data) { }
-function initializeGame(data) { }
+// ===== STUBS: Llaman a funciones en archivos separados =====
+// Nota: Las funciones reales se definen en sus respectivos archivos
+// (overview.js, activity.js, timeline.js, etc.) y se cargan después de main.js
+// Estos stubs actúan como puntos de entrada en renderTabContent()
 
 // ===== UTILIDADES HELPER =====
 function shuffle(array) {

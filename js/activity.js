@@ -18,7 +18,7 @@ function generateActivity(data) {
     const hour = d.datetime.getHours(); // 0-23
     heatmapData[day][hour]++;
     if (heatmapData[day][hour] > maxHeatmapValue) {
-        maxHeatmapValue = heatmapData[day][hour];
+      maxHeatmapValue = heatmapData[day][hour];
     }
   });
 
@@ -48,7 +48,7 @@ function generateActivity(data) {
   chartInstances.push(new Chart(ctx1, {
     type: 'bar',
     data: {
-      labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+      labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
       datasets: [{
         label: 'Total Messages',
         data: hourCounts,
@@ -84,37 +84,33 @@ function generateActivity(data) {
  * @param {Array<string>} dayLabels Array of weekday names.
  */
 function renderCustomHeatmap(heatmapData, maxVal, dayLabels) {
-    const gridContainer = document.getElementById('customHeatmapGrid');
-    gridContainer.innerHTML = ''; // Clear previous content
+  const gridContainer = document.getElementById('customHeatmapGrid');
 
-    // Create the corner empty cell
-    gridContainer.innerHTML += `<div class="heatmap-label corner-cell"></div>`;
+  // Build HTML once, then assign to avoid reflows
+  let htmlContent = `<div class="heatmap-label corner-cell"></div>`;
 
-    // Create hour labels (00-23)
-    for (let h = 0; h < 24; h++) {
-        gridContainer.innerHTML += `<div class="heatmap-label hour-label">${h.toString().padStart(2, '0')}</div>`;
-    }
+  // Create hour labels (00-23)
+  for (let h = 0; h < 24; h++) {
+    htmlContent += `<div class="heatmap-label hour-label">${h.toString().padStart(2, '0')}</div>`;
+  }
 
-    // Create day labels and data cells
-    dayLabels.forEach((dayLabel, dayIndex) => {
-        gridContainer.innerHTML += `<div class="heatmap-label day-label">${dayLabel}</div>`; // Day label
+  // Create day labels and data cells
+  dayLabels.forEach((dayLabel, dayIndex) => {
+    htmlContent += `<div class="heatmap-label day-label">${dayLabel}</div>`; // Day label
 
-        for (let hourIndex = 0; hourIndex < 24; hourIndex++) {
-            const count = heatmapData[dayIndex][hourIndex];
-            // Calculate color intensity: 0 (light) to 1 (dark/intense)
-            const intensity = maxVal > 0 ? count / maxVal : 0;
-            // Use HSL for coloring for better control (e.g., green scale)
-            // Hue (H): 120 (green)
-            // Saturation (S): 70%
-            // Lightness (L): Varies from 95% (very light) to 40% (dark) based on intensity
-            const lightness = 95 - (intensity * 55); // Adjust range for desired visual effect
-            const backgroundColor = `hsl(120, 70%, ${lightness}%)`;
+    for (let hourIndex = 0; hourIndex < 24; hourIndex++) {
+      const count = heatmapData[dayIndex][hourIndex];
+      const intensity = maxVal > 0 ? count / maxVal : 0;
+      const lightness = 95 - (intensity * 55);
+      const backgroundColor = `hsl(120, 70%, ${lightness}%)`;
 
-            gridContainer.innerHTML += `
-                <div class="heatmap-cell" style="background-color: ${backgroundColor};" 
+      htmlContent += `<div class="heatmap-cell" style="background-color: ${backgroundColor}; white-space: nowrap; padding: 4px;" 
                      title="Day: ${dayLabel}, Hour: ${hourIndex.toString().padStart(2, '0')}, Messages: ${count}">
                     ${count > 0 ? count : ''}
                 </div>`;
-        }
-    });
+    }
+  });
+
+  // Set all HTML at once
+  gridContainer.innerHTML = htmlContent;
 }

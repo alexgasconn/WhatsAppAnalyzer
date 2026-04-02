@@ -643,24 +643,34 @@ canvas {
   display: grid;
   gap: 1px;
   background-color: var(--border);
+  width: fit-content;
   max-width: 100%;
-  overflow-x: auto;
+  overflow: auto;
   margin: 20px auto;
-  max-width: fit-content;
+  border-radius: 8px;
+  padding: 1px;
+}
+
+#heatmapContainer {
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 8px;
+  margin: 20px 0;
 }
 
 .heatmap-cell,
 .heatmap-label {
-  padding: 6px;
+  padding: 3px;
   text-align: center;
-  font-size: 0.7em;
+  font-size: 0.65em;
   color: var(--text);
   background-color: white;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 25px;
-  min-height: 25px;
+  min-width: 22px;
+  min-height: 22px;
+  box-sizing: border-box;
 }
 
 [data-theme="dark"] .heatmap-cell,
@@ -673,12 +683,35 @@ canvas {
   background-color: #f0f0f0;
   transition: background-color 0.3s ease;
   cursor: pointer;
+  font-weight: 500;
+}
+
+.heatmap-cell:hover {
+  opacity: 0.9;
+  box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.2);
 }
 
 .heatmap-label {
   font-weight: bold;
   background-color: var(--light);
   flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 0.7em;
+}
+
+.corner-cell {
+  background-color: var(--light) !important;
+}
+
+.hour-label,
+.day-label {
+  background-color: #e8e8e8;
+  font-size: 0.65em !important;
+}
+
+[data-theme="dark"] .hour-label,
+[data-theme="dark"] .day-label {
+  background-color: #333;
 }
 
 /* ===== RESPONSIVE DESIGN ===== */
@@ -694,6 +727,14 @@ canvas {
   .stats-grid {
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 15px;
+  }
+
+  .heatmap-cell,
+  .heatmap-label {
+    min-width: 20px;
+    min-height: 20px;
+    padding: 2px;
+    font-size: 0.6em;
   }
 }
 
@@ -941,10 +982,15 @@ canvas {
 
   .heatmap-cell,
   .heatmap-label {
-    min-width: 20px;
-    min-height: 20px;
-    padding: 4px;
-    font-size: 0.6em;
+    min-width: 18px;
+    min-height: 18px;
+    padding: 2px;
+    font-size: 0.55em;
+  }
+
+  #heatmapContainer,
+  #relationshipHeatmap {
+    margin: 15px 0;
   }
 }
 
