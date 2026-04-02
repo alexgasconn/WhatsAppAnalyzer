@@ -1,59 +1,69 @@
-// Game state is now managed in main.js, but game-specific functions are here.
+// TRIVIA GAME - "¿Quién dijo esto?"
+
+// Game state variable
+let gameState = {
+    questions: [],
+    currentQuestion: 0,
+    score: 0,
+    started: false
+};
 
 /**
  * Initializes the "Who Said This?" game with questions from chat data.
- * @param {Array} data The parsed chat data.
  */
 function initializeGame(data) {
     const userCounts = {};
     data.forEach(d => userCounts[d.user] = (userCounts[d.user] || 0) + 1);
     const users = Object.keys(userCounts);
 
-    // Filter out users with very few messages if necessary to avoid trivial questions
-    const eligibleUsers = users.filter(user => userCounts[user] > 5); // Example: user must have > 5 messages
+    // Filter users with at least 5 messages
+    const eligibleUsers = users.filter(user => userCounts[user] >= 5);
+
     if (eligibleUsers.length < 2) {
-        document.getElementById('game').innerHTML =
-            `<div class="game-container"><h3>Game Unavailable</h3><p>Not enough unique active users for a game. Try a chat with more participants!</p></div>`;
+        document.getElementById('game').innerHTML = `
+      <div class="game-container">
+        <div class="game-unavailable">
+          <h3>🎮 Juego No Disponible</h3>
+          <p>Se necesitan al menos 2 usuarios con 5+ mensajes para jugar.</p>
+          <p>Carga un chat con más participantes activos.</p>
+        </div>
+      </div>
+    `;
         return;
     }
 
+    // Generate questions
     const questions = [];
-    const numberOfQuestions = 5; // You can adjust this
+    const numberOfQuestions = Math.min(10, Math.floor(data.length / 3));
 
     for (let i = 0; i < numberOfQuestions; i++) {
-        // Select a message from an eligible user
         let sample = null;
         let attempts = 0;
-        while (!sample && attempts < 100) { // Prevent infinite loop if no good messages
-            const randomMessageIndex = Math.floor(Math.random() * data.length);
-            const candidateMessage = data[randomMessageIndex];
-            // Ensure the message is by an eligible user and not too short (e.g., just an emoji or "ok")
-            if (
-                eligibleUsers.includes(candidateMessage.user) &&
-                candidateMessage.message.length >= 10 &&
-                candidateMessage.message.length <= 100
-            ) {
-                sample = candidateMessage;
-            }
 
+        // Find a suitable message
+        while (!sample && attempts < 100) {
+            const randomIdx = Math.floor(Math.random() * data.length);
+            const candidate = data[randomIdx];
+
+            if (
+                eligibleUsers.includes(candidate.user) &&
+                candidate.message.length >= 10 &&
+                candidate.message.length <= 120
+            ) {
+                sample = candidate;
+            }
             attempts++;
         }
 
-        if (!sample) {
-            // Fallback if no suitable messages are found after many attempts
-            console.warn("Could not find a suitable message for a game question.");
-            continue;
-        }
+        if (!sample) continue;
 
         const correctUser = sample.user;
-
-        // Generate incorrect options
         let otherUsers = eligibleUsers.filter(u => u !== correctUser);
-        otherUsers = shuffle(otherUsers); // Shuffle to get random incorrect options
-        const incorrectOptions = otherUsers.slice(0, 2); // Take 2 incorrect options
+        otherUsers = shuffle(otherUsers);
 
-        // Combine correct and incorrect, then shuffle all options
-        const options = shuffle([...incorrectOptions, correctUser]);
+        const numOptions = Math.min(3, eligibleUsers.length);
+        const incorrectOptions = otherUsers.slice(0, numOptions - 1);
+        const options = shuffle([correctUser, ...incorrectOptions]);
 
         questions.push({
             message: sample.message,
@@ -62,62 +72,142 @@ function initializeGame(data) {
         });
     }
 
-    gameState.questions = questions;
-    gameState.currentQuestion = 0;
-    gameState.score = 0;
-    renderGame();
+    gameState = {
+        questions: questions,
+        currentQuestion: 0,
+        score: 0,
+        started: true
+    };
+
+    renderGameScreen();
 }
 
 /**
- * Renders the current game question or the game over screen.
+ * Renders the game UI
  */
-function renderGame() {
-    const q = gameState.questions[gameState.currentQuestion];
-    if (!q) {
-        document.getElementById('game').innerHTML =
-            `<div class="game-container">
-         <h3>Game Over!</h3>
-         <div class="game-score">Final Score: ${gameState.score}/${gameState.questions.length}</div>
-         <div class="game-controls">
-           <button class="game-btn" onclick="initializeGame(globalData)">Play Again</button>
-         </div>
-       </div>`;
+function renderGameScreen() {
+    const container = document.getElementById('game');
+    if (!container) return;
+
+    if (!gameState.started || gameState.questions.length === 0) {
+        container.innerHTML = `
+      <div class="game-container">
+        <div class="game-start">
+          <h2>🎮 ¿Quién Dijo Esto?</h2>
+          <p>Adivina quién escribió cada mensaje en el chat.</p>
+          <button class="game-start-btn" onclick="initializeGame(globalData)">
+            🎯 Jugar Ahora
+          </button>
+        </div>
+      </div>
+    `;
         return;
     }
 
-    let html = `<div class="game-container">
-    <h3>Who said this? (Question ${gameState.currentQuestion + 1} of ${gameState.questions.length})</h3>
-    <div class="game-message">"${q.message}"</div>
-    <div class="game-options">`;
+    const q = gameState.questions[gameState.currentQuestion];
 
-    q.options.forEach(opt => {
-        html += `<button class="game-btn" onclick="answerGame('${opt}')">${opt}</button>`;
+    if (!q) {
+        // Game over
+        const accuracy = ((gameState.score / gameState.questions.length) * 100).toFixed(1);
+        let emoji = '😔';
+        if (accuracy >= 80) emoji = '🏆';
+        else if (accuracy >= 60) emoji = '👍';
+        else if (accuracy >= 40) emoji = '😐';
+
+        container.innerHTML = `
+      <div class="game-container">
+        <div class="game-over">
+          <h2 class="game-over-title">${emoji} ¡Juego Terminado!</h2>
+          <div class="game-stats">
+            <div class="stat-box">
+              <div class="stat-label">Puntuación</div>
+              <div class="stat-big">${gameState.score}/${gameState.questions.length}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Precisión</div>
+              <div class="stat-big">${accuracy}%</div>
+            </div>
+          </div>
+          <button class="game-start-btn" onclick="initializeGame(globalData)" style="margin-top: 20px;">
+            🔄 Jugar de Nuevo
+          </button>
+        </div>
+      </div>
+    `;
+        gameState.started = false;
+        return;
+    }
+
+    const progress = ((gameState.currentQuestion / gameState.questions.length) * 100).toFixed(0);
+
+    let html = `
+    <div class="game-container">
+      <div class="game-header">
+        <h2>🎮 ¿Quién Dijo Esto?</h2>
+        <div class="game-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: ${progress}%;"></div>
+          </div>
+          <div class="progress-text">Pregunta ${gameState.currentQuestion + 1} de ${gameState.questions.length}</div>
+        </div>
+      </div>
+
+      <div class="game-question">
+        <p class="question-message">"${q.message}"</p>
+      </div>
+
+      <div class="game-options">
+  `;
+
+    q.options.forEach((opt, idx) => {
+        html += `
+      <button class="game-option" onclick="answerGame('${opt}')">
+        <span class="option-letter">${String.fromCharCode(65 + idx)}</span>
+        <span class="option-text">${opt}</span>
+      </button>
+    `;
     });
 
-    html += `</div><div class="game-score">Current Score: ${gameState.score}</div></div>`;
-    document.getElementById('game').innerHTML = html;
+    html += `
+      </div>
+
+      <div class="game-footer">
+        <div class="score-display">
+          <span>Puntos:</span>
+          <strong>${gameState.score}</strong>
+        </div>
+      </div>
+    </div>
+  `;
+
+    container.innerHTML = html;
 }
 
 /**
- * Processes the user's answer for the current game question.
- * @param {string} selected The user's selected option.
+ * Processes the user's answer
  */
 function answerGame(selected) {
     const q = gameState.questions[gameState.currentQuestion];
-    const buttons = document.querySelectorAll('#game .game-btn'); // Target buttons within the game tab
+    const buttons = document.querySelectorAll('#game .game-option');
+    const isCorrect = selected === q.correct;
+
     buttons.forEach(btn => {
-        if (btn.textContent === q.correct) btn.classList.add('correct');
-        if (btn.textContent === selected && selected !== q.correct) btn.classList.add('incorrect');
-        btn.disabled = true; // Disable all buttons after an answer
+        btn.disabled = true;
+        if (btn.textContent.includes(q.correct)) {
+            btn.classList.add('game-correct');
+        }
+        if (btn.textContent.includes(selected) && !isCorrect) {
+            btn.classList.add('game-incorrect');
+        }
     });
 
-    if (selected === q.correct) {
+    if (isCorrect) {
         gameState.score++;
     }
 
-    // Move to the next question after a short delay
+    // Show feedback and proceed
     setTimeout(() => {
         gameState.currentQuestion++;
-        renderGame();
-    }, 1500); // 1.5 second delay
+        renderGameScreen();
+    }, 1500);
 }
